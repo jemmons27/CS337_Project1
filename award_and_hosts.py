@@ -3,6 +3,7 @@ import re
 from collections import Counter
 import wordninja
 import spacy
+from datetime import datetime, timedelta
 
 # Load the SpaCy English model for NER
 nlp = spacy.load("en_core_web_sm")
@@ -17,16 +18,14 @@ def load_json(file_path):
 
 def clean_text(text):
     """
-    Cleans and normalizes text by converting to lowercase
-    and stripping whitespace.
+    Cleans and normalizes text by converting to lowercase and stripping whitespace.
     """
-    text = text.lower()
-    return text.strip()
+    return text.lower().strip()
 
 def find_award_name(tweets):
     """
-    Finds the award show name by extracting the most common hashtag
-    and splitting it into words.
+    Finds the award show name by extracting the most common hashtag and splitting it into words.
+    Uses all tweets without time filtering.
     """
     hashtags = []
     hashtag_pattern = re.compile(r"#(\w+)", re.IGNORECASE)
@@ -45,9 +44,9 @@ def find_award_name(tweets):
         print(f"The most mentioned hashtag is: #{most_common_hashtag}")
         print(f"Number of mentions: {count}")
 
-        # Split the hashtag into words using wordninja
+        # Split the hashtag into words
         words = wordninja.split(most_common_hashtag)
-        # Capitalize each word to form the award show name
+        # Capitalize each word
         award_name = ' '.join(word.capitalize() for word in words)
         print(f"The award show name is: {award_name}")
         return award_name
@@ -55,12 +54,13 @@ def find_award_name(tweets):
         print("No hashtags found.")
         return None
 
-def find_hosts(tweets, award_name):
+def find_hosts(tweets, award_name, earliest_time):
     """
     Finds the hosts' names by applying regex patterns and SpaCy NER to the tweets.
-    Excludes names that match the award show name.
     Only considers tweets that match the hosting regex patterns.
-    Returns the top 5 most mentioned host names.
+    Then filters these tweets to those within the first 30 minutes from earliest_time.
+    Excludes any names that match or contain the award show name.
+    Returns the top 2 most common host names.
     """
     # Regex patterns provided
     host_patterns = [
@@ -75,64 +75,72 @@ def find_hosts(tweets, award_name):
     # Compile regex patterns
     compiled_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in host_patterns]
 
-    # List to store potential host names
-    potential_hosts = []
-
     # Normalize the award show name for comparison
     normalized_award_name = clean_text(award_name.replace(' ', ''))
 
-    for tweet in tweets:
-        # Flag to indicate if the tweet matches any host pattern
+    # Define the time window (first 30 minutes from earliest_time)
+    time_window = earliest_time + timedelta(minutes=30)
+
+    # List to store potential host names
+    potential_hosts = []
+
+    for tweet_data in tweets:
+        tweet_text = tweet_data.get('text', '')
+        timestamp_ms = tweet_data.get('timestamp_ms', '')
+        if not tweet_text or not timestamp_ms:
+            continue  # Skip if text or timestamp is missing
+
+        # Parse the timestamp
+        timestamp = datetime.fromtimestamp(int(timestamp_ms)/1000)
+
+        # Apply regex patterns to check if the tweet is about hosting
         matches_host_pattern = False
-
-        # Apply regex patterns to the tweet
         for pattern in compiled_patterns:
-            matches = pattern.findall(tweet)
-            if matches:
+            if pattern.search(tweet_text):
                 matches_host_pattern = True
-                for match in matches:
-                    # Ensure match is a string (handles groups)
-                    if isinstance(match, tuple):
-                        match = ' '.join(match)
-                    # Clean and normalize the host name
-                    host_name = clean_text(match)
-                    # Remove extra spaces and ensure it's not empty
-                    host_name = ' '.join(host_name.split())
-                    if host_name:
-                        # Split names if 'and' or '&' is used
-                        individual_hosts = re.split(r'\band\b|&', host_name)
-                        for host in individual_hosts:
-                            host = host.strip()
-                            # Exclude single-word names and award show name
-                            if host and len(host.split()) >= 2:
-                                if normalized_award_name not in clean_text(host).replace(' ', ''):
-                                    potential_hosts.append(host)
+                break
 
-        # If the tweet matches any host pattern, proceed to extract PERSON entities
         if matches_host_pattern:
-            doc = nlp(tweet)
-            for ent in doc.ents:
-                if ent.label_ == 'PERSON':
-                    host_name = clean_text(ent.text)
-                    host_name = ' '.join(host_name.split())
-                    # Exclude single-word names and award show name
-                    if host_name and len(host_name.split()) >= 2:
-                        # Exclude if host_name contains award show name
-                        if normalized_award_name not in clean_text(host_name).replace(' ', ''):
-                            # Dependency parsing: check if host_name is subject or object of hosting verb
-                            token = ent.root
-                            if (token.head.lemma_ in ['host', 'hosting', 'hosted', 'kick', 'kick off'] 
-                                and token.head.pos_ == 'VERB'
-                                and token.dep_ in ['nsubj', 'dobj']):
+            # Check if the tweet is within the time window
+            if timestamp <= time_window:
+                # Apply regex patterns to extract host names
+                for pattern in compiled_patterns:
+                    matches = pattern.findall(tweet_text)
+                    for match in matches:
+                        # Ensure match is a string (handles groups)
+                        if isinstance(match, tuple):
+                            match = ' '.join(match)
+                        # Clean and normalize the host name
+                        host_name = clean_text(match)
+                        # Remove extra spaces and ensure it's not empty
+                        host_name = ' '.join(host_name.split())
+                        if host_name:
+                            # Split names if 'and' or '&' is used
+                            individual_hosts = re.split(r'\band\b|&', host_name)
+                            for host in individual_hosts:
+                                host = host.strip()
+                                if host:
+                                    # Exclude if host name contains award show name
+                                    if normalized_award_name not in host.replace(' ', ''):
+                                        potential_hosts.append(host)
+                # Use SpaCy NER to extract person names
+                doc = nlp(tweet_text)
+                for ent in doc.ents:
+                    if ent.label_ == 'PERSON':
+                        host_name = clean_text(ent.text)
+                        host_name = ' '.join(host_name.split())
+                        if host_name:
+                            # Exclude if host name contains award show name
+                            if normalized_award_name not in host_name.replace(' ', ''):
                                 potential_hosts.append(host_name)
 
     # Count the frequency of each potential host name
     host_name_counts = Counter(potential_hosts)
 
-    # Identify the top 5 most common host names
+    # Identify the top 2 most common host names
     if host_name_counts:
-        most_common_hosts = host_name_counts.most_common(5)
-        print("\nTop 5 most likely host(s):")
+        most_common_hosts = host_name_counts.most_common(2)
+        print("\nTop 2 most likely host(s):")
         for host, count in most_common_hosts:
             # Capitalize each word in the host name
             host_name_formatted = ' '.join(word.capitalize() for word in host.split())
@@ -146,16 +154,32 @@ def main():
 
     # Load tweets from the JSON file
     data = load_json(file_path)
-    tweets = [item.get('text', '') for item in data]
 
-    # Find the award name
-    award_name = find_award_name(tweets)
+    # Extract tweets' text for award name finding
+    tweets_text = [item.get('text', '') for item in data if 'text' in item]
 
-    if award_name:
-        # Find the hosts
-        find_hosts(tweets, award_name)
-    else:
+    # Find the award name using all tweets
+    award_name = find_award_name(tweets_text)
+
+    if not award_name:
         print("Could not determine the award show name.")
+        return
+
+    # Extract timestamps to find the earliest timestamp
+    timestamps = []
+    for item in data:
+        timestamp_ms = item.get('timestamp_ms', '')
+        if timestamp_ms:
+            timestamp = datetime.fromtimestamp(int(timestamp_ms)/1000)
+            timestamps.append(timestamp)
+    if not timestamps:
+        print("No valid timestamps found.")
+        return
+
+    earliest_time = min(timestamps)
+
+    # Find the hosts using filtered tweets
+    find_hosts(data, award_name, earliest_time)
 
 if __name__ == "__main__":
     main()
