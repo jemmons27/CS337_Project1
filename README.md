@@ -36,8 +36,8 @@ General Outline:
 - Setting up the shared code
         - For our initial version of the shared code, it might be easiest to run all of our functions separately (i.e
         not finding nominees and award categories in the same pass through the dataset) to get a baseline on runtime
-        - Possible combinable functions: Find nominees, award categories, hosts, fashion/performances/extra, award show name, (maybe presenters? not sure if this one relies on knowing categories already)
-        - Requires nominees + categories - winners
+        - Possible combinable functions: Find nominees, award categories, hosts, fashion/performances/extra, award show name
+        - Requires nominees and/or categories - winners, matching nominees to presenters
                 - This would have to be on a second pass through the dataset, but to speed up we could remove now irrelevant tweets
         
 
