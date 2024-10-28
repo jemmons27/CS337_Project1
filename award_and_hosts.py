@@ -55,13 +55,7 @@ def find_award_name(tweets):
         return None
 
 def find_hosts(tweets, award_name, earliest_time):
-    """
-    Finds the hosts' names by applying regex patterns and SpaCy NER to the tweets.
-    Only considers tweets that match the hosting regex patterns.
-    Then filters these tweets to those within the first 30 minutes from earliest_time.
-    Excludes any names that match or contain the award show name.
-    Returns the top 2 most common host names.
-    """
+    
     # Regex patterns provided
     host_patterns = [
         r"([A-Za-z\s]+)\s+hosts?\b",
