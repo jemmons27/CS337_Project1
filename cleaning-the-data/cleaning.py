@@ -27,7 +27,7 @@ def clean_entry(entry):
     tokenized_text = [word for word in tokenized_text if word not in stop_words]
     #simplifying the data
     return {
-        'text': tokenized_text,
+        'text': ' '.join(word for word in tokenized_text),
         'user_id': entry['user']['id']
     }
 

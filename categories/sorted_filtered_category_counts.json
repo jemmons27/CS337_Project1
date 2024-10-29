@@ -1,0 +1,390 @@
+[
+    [
+        "('Actor', 'Motion Picture ')",
+        332
+    ],
+    [
+        "('Actress', 'Motion Picture ')",
+        287
+    ],
+    [
+        "('Supporting Actress', 'Motion Picture ')",
+        284
+    ],
+    [
+        "('Actor', 'Motion Picture')",
+        201
+    ],
+    [
+        "('Actress', 'Motion Picture')",
+        184
+    ],
+    [
+        "('Supporting Actress', 'Motion Picture')",
+        182
+    ],
+    [
+        "('Supporting Actor', 'Motion Picture ')",
+        165
+    ],
+    [
+        "('Supporting Actress', 'TV Movie')",
+        153
+    ],
+    [
+        "('Actress', 'Comedy Series')",
+        112
+    ],
+    [
+        "motion picture drama",
+        90
+    ],
+    [
+        "('Actress', 'TV Movie or Miniseries ')",
+        83
+    ],
+    [
+        "('Actor', 'Television Series ')",
+        74
+    ],
+    [
+        "('Actor', 'TV Movie or Miniseries ')",
+        73
+    ],
+    [
+        "('Actor', 'TV Series')",
+        70
+    ],
+    [
+        "('Actress', 'Television Series ')",
+        68
+    ],
+    [
+        "('supporting actress', 'motion picture is awarded to Anne Hathaway for ')",
+        66
+    ],
+    [
+        "('Actress', 'TV Series')",
+        64
+    ],
+    [
+        "('Supporting Actor', 'Television Series ')",
+        56
+    ],
+    [
+        "('Actress', 'TV Comedy')",
+        44
+    ],
+    [
+        "('actress', 'motion picture drama is Jessica Chastain for ')",
+        37
+    ],
+    [
+        "actress in a TV comedy or musical",
+        29
+    ],
+    [
+        "('actress', 'TV comedy or musical goes to Lena Dunham for ')",
+        28
+    ],
+    [
+        "('Actress', 'Miniseries or TV Movie')",
+        27
+    ],
+    [
+        "('Performance by an Actor', 'Motion Picture ')",
+        27
+    ],
+    [
+        "('Supporting Actor', 'Drama')",
+        24
+    ],
+    [
+        "('Supporting Actress', 'TV Series')",
+        24
+    ],
+    [
+        "('Actor', 'Miniseries or TV Movie')",
+        24
+    ],
+    [
+        "('Supporting Actress', 'Motion Picture for ')",
+        22
+    ],
+    [
+        "('Supporting Actress', 'Motion Picture win for Les Miserables')",
+        21
+    ],
+    [
+        "('Original Song', 'Motion Picture')",
+        18
+    ],
+    [
+        "Director",
+        18
+    ],
+    [
+        "('actor', 'miniseries')",
+        17
+    ],
+    [
+        "Actress",
+        17
+    ],
+    [
+        "('Actor', 'Drama wa')",
+        16
+    ],
+    [
+        "screenplay",
+        15
+    ],
+    [
+        "Original Song",
+        14
+    ],
+    [
+        "('Actress', 'Comedy')",
+        14
+    ],
+    [
+        "('actress', 'mini')",
+        13
+    ],
+    [
+        "('Actor', 'Mini')",
+        12
+    ],
+    [
+        "('Supporting Actress', 'Motion Picture for  ')",
+        12
+    ],
+    [
+        "('Actor', 'comedy or musical')",
+        12
+    ],
+    [
+        "('actor', 'motion picture comedy or musical is Hugh Jackman for ')",
+        12
+    ],
+    [
+        "('Actor', 'Motion Picture Drama ')",
+        12
+    ],
+    [
+        "('Actor', 'Movie ')",
+        11
+    ],
+    [
+        "('actress', 'motion picture is Jessica Chastain for ')",
+        11
+    ],
+    [
+        "('Actor', 'Television Series')",
+        10
+    ],
+    [
+        "('Actor', 'TV Series ')",
+        10
+    ],
+    [
+        "Screenplay",
+        10
+    ],
+    [
+        "('Actress', 'TV Series ')",
+        10
+    ],
+    [
+        "director for motion picture",
+        10
+    ],
+    [
+        "('Supporting Actor', 'Motion Picture for his role in Django Unchained')",
+        9
+    ],
+    [
+        "Supporting Actress",
+        9
+    ],
+    [
+        "('Actress', 'Miniseries')",
+        9
+    ],
+    [
+        "('Actress', 'Comedy or Musical for ')",
+        9
+    ],
+    [
+        "Original Score",
+        8
+    ],
+    [
+        "('Performance by an Actress', 'Motion Picture ')",
+        8
+    ],
+    [
+        "('Supporting Actor', 'Series')",
+        8
+    ],
+    [
+        "('Actress', 'Drama')",
+        8
+    ],
+    [
+        "Animated Feature Film",
+        8
+    ],
+    [
+        "('supporting actor', 'motion picture')",
+        7
+    ],
+    [
+        "('Supporting Actress', 'TV show')",
+        7
+    ],
+    [
+        "('Actress', 'Miniseries or TV Movie for ')",
+        7
+    ],
+    [
+        "original song",
+        7
+    ],
+    [
+        "('Actress', 'Comedy or Musical')",
+        7
+    ],
+    [
+        "('supporting actor', 'TV show')",
+        7
+    ],
+    [
+        "('Actress', 'Musical or Comedy Golden Globes 2013 http')",
+        7
+    ],
+    [
+        "('actress', 'TV series')",
+        7
+    ],
+    [
+        "('Performance by an Actor', 'Motion Picture')",
+        7
+    ],
+    [
+        "('Supporting Actor', 'Motion Picture')",
+        6
+    ],
+    [
+        "('Performance by an Actor', 'Television Series ')",
+        6
+    ],
+    [
+        "actor for TV drama",
+        6
+    ],
+    [
+        "('Actor', 'Drama category')",
+        6
+    ],
+    [
+        "('Actress', 'Movie ')",
+        6
+    ],
+    [
+        "supporting actor in TV",
+        6
+    ],
+    [
+        "('Supporting Actor', 'Television Series')",
+        6
+    ],
+    [
+        "supporting actress in a motion picture",
+        6
+    ],
+    [
+        "('Performance by an Actress', 'Supporting Role')",
+        6
+    ],
+    [
+        "('Actress', 'Television Series')",
+        6
+    ],
+    [
+        "('actress', 'TV comedy')",
+        6
+    ],
+    [
+        "('actor', 'motion picture comedy')",
+        6
+    ],
+    [
+        "actor in a motion picture drama",
+        6
+    ],
+    [
+        "supporting actor",
+        5
+    ],
+    [
+        "('Supporting Actress', 'Series')",
+        5
+    ],
+    [
+        "('Supporting Actress', 'TV series http')",
+        5
+    ],
+    [
+        "('actress', 'motion picture comedy or musical goes to Jennifer Lawrence for ')",
+        5
+    ],
+    [
+        "actress in a motion picture comedy or musical",
+        5
+    ],
+    [
+        "Supporting Actress in a Motion Picture",
+        5
+    ],
+    [
+        "('supporting actress', 'motion picture goes to Anne Hathaway ')",
+        5
+    ],
+    [
+        "('Actress In A Supporting Role', 'Motion Picture the ')",
+        5
+    ],
+    [
+        "foreign film",
+        5
+    ],
+    [
+        "('Actor', 'Musical or Comedy')",
+        5
+    ],
+    [
+        "('Actor', 'Motion Picture Comedy or Musical for Les Miserables ')",
+        5
+    ],
+    [
+        "Motion Picture",
+        5
+    ],
+    [
+        "actress in a motion picture drama",
+        5
+    ],
+    [
+        "('actor', 'motion picture drama goes to Daniel Day')",
+        5
+    ],
+    [
+        "Actor in a Motion Picture Drama",
+        5
+    ],
+    [
+        "Motion Picture Drama",
+        5
+    ]
+]
