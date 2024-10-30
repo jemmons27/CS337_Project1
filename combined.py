@@ -39,7 +39,7 @@ def init_regex():
     "host": [re.compile(pattern, re.IGNORECASE) for pattern in [
         r"([A-Za-z\s]+)\s+hosts?\b",
         r"([A-Za-z\s]+)\.\.\.\s*hosting\b",
-        r"([A-Za-z\s]+)\s+kicks\s+off\b",
+        r"([A-Za-z\s]+)\s+kicks\s+off\b",   
         r"Hosts?\s+([A-Za-z\s]+)",
         r"([A-Za-z\s]+)\s+hosted\b",
         r"hosted by\s+([A-Za-z\s]+)\b"
@@ -200,9 +200,8 @@ def init_and_sort(write, start):
             early = timestamp_ms
         i += 1
     time_window = early + timedelta(minutes=30)
-    print(time_window)
     
-    for i in range(length):
+    for i in range(length): ##Category
         #all tweets are now populated, now loop through all tweets for pattern matching
         text = ttext[i] 
         ms = tmstmp[i]

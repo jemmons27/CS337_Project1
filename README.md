@@ -41,3 +41,21 @@ General Outline:
                 - This would have to be on a second pass through the dataset, but to speed up we could remove now irrelevant tweets
         
 
+Find categories
+Find potential winners
+Find fashion/parties
+
+match winners, nominees, presenters to categories
+
+format results and returns
+
+possible runtime or accuracy optimization
+
+categories(Find categories) -> winners (find possible winners and try to match them with categories)
+                                nominees matching with categories
+
+                                edit presenters to match with categories
+                                edit nominees to match with categories
+                                edit winners to match with categories
+
+                                return/format results
