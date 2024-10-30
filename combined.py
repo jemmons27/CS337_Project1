@@ -9,6 +9,7 @@ import spacy
 import wordninja
 from collections import Counter
 import ast
+from os import mkdir
 
 from warnings import simplefilter 
 
@@ -150,14 +151,11 @@ def sort(text, patterns):
                 
 
 
-def init_and_sort():
+def init_and_sort(write, start):
     """__summary__: Parses through all tweets in datasets and checks them against all patterns
     for a given pattern key, for example, those that help find presenters, all successfully
-    found matches are stored into a dataframe column corresponding to the key
-
-    Returns:
-        dataframe: One column per set of patterns, contains all found matches either in tuples or strings,
-        depending on the needs of the related functions
+    found matches are stored into a dataframe column corresponding to the key, then written to
+    a file in df/<column name>
     """
     print("Enter dataset path: ")
     path ='gg2013.json'
@@ -201,14 +199,13 @@ def init_and_sort():
         elif timestamp_ms < early:
             early = timestamp_ms
         i += 1
-    tweetdf = pd.DataFrame.from_dict({'ttext': ttext, 'tmstmp': tmstmp})
     time_window = early + timedelta(minutes=30)
     print(time_window)
     
     for i in range(length):
         #all tweets are now populated, now loop through all tweets for pattern matching
-        text = tweetdf['ttext'][i] 
-        ms = tweetdf["tmstmp"][i]
+        text = ttext[i] 
+        ms = tmstmp[i]
         ms = datetime.fromtimestamp(int(ms)/1000)
         #can make new json object here with only relevant info
         for k in keys: #for each pattern category like nominees, hosts, presenters
@@ -228,7 +225,7 @@ def init_and_sort():
                 if type(slce) == tuple: #if its nested take a guess
                     slce = slce[-1]
                 slce = re.sub(cut, '', slce) #refer to above
-                checker = (False, False)
+                
                 if k == 'host': #host function wants to check for certain time window, done below
                     if ms <= time_window:
                         df[k][ind] = slce
@@ -238,18 +235,31 @@ def init_and_sort():
                 counts[k] = ind + 1
         i += 1
         if i % 20000 == 0:
-            print("pattern matching:", i, "out of:", length)
-    print(df)
-    tweetdf.to_csv('tweetdf2.csv', index=False) #save to csv for testing/quicker running
-    df.to_csv('sorted2.csv', sep='\t', encoding='utf-8',index=False)
-    return df #return the populated dataframe
+            print("\n", time.time() - start, "seconds")
+            print("sorted", i, "out of", length)
+    tweetdf = pd.DataFrame.from_dict({'ttext': ttext, 'tmstmp': tmstmp})
+    tweetdf.to_csv('tweetdf3.csv', sep='\t', index=False) #save to csv for testing/quicker running
+    res = {}
+    for k in keys:
+        mask = df[k].replace('', np.nan) #get rid of all extra rows
+        mask.dropna(inplace=True)
+        if write:
+            mask.to_csv('df/' + k + '.csv', sep='\t', index=False)
+        res[k] = mask
+    dfnom = res['nominees']
+    dfshow = res['hashtag']
+    dfhost = res['host']
+    dfpresent = res['presenter']
+    dfwin = res['winner']
+    
+    return dfnom, dfshow, dfhost, dfpresent, dfwin
 
 def nominees(df): #find possible nominees
     model = spacy.load('en_core_web_sm')
     i=0
     res=[]
-    while i < len(df['nominees']): # go through nominees col of df
-        curr = df['nominees'][i] 
+    while i < len(df): # go through nominees col of df
+        curr = df[i] 
         i += 1
         if type(curr) != str: #needs to be a string or invalid
             continue
@@ -276,9 +286,7 @@ def awardshow(df): #finding award show
     Returns:
         _type_: awardshow name string
     """
-    mask = df['hashtag'].replace('', np.nan) #get rid of all extra rows
-    mask.dropna( inplace=True)
-    counts = Counter(mask) #count occurrences of each entry
+    counts = Counter(df) #count occurrences of each entry
     if counts:
         most_common_hashtag, count = counts.most_common(1)[0]
         print(f"The most mentioned hashtag is: #{most_common_hashtag}")
@@ -305,10 +313,8 @@ def hosts(df, show):
     potential_hosts = []
     normalized_award_name = clean(show.replace(' ', ''))
     i = 0
-    mask = df['host'] # Get rid of unpopulated rows
-    mask.dropna(inplace=True)
-    while i < len(mask): # Loop through all remaining rows
-        curr = mask[i] 
+    while i < len(df): # Loop through all remaining rows
+        curr = df[i] 
         i += 1
         if isinstance(curr, tuple): # If tuple transform into string
             curr = ' '.join(curr)
@@ -352,8 +358,6 @@ def present(df):
     Returns:
         list[str]: possible presenters
     """
-    mask = df['presenter']
-    mask.dropna(inplace=True)
     #print(mask)
     i = 0
     model = spacy.load('en_core_web_sm')
@@ -361,8 +365,8 @@ def present(df):
     pat = re.compile(pat)
     options = []
     strhandler = re.compile(r"'([^']*)'") # Pattern for transforming strings of form "('x', 'y', ...)" to (x, y, ...)
-    while i < len(mask): # Loop through rows of mask
-        curr = mask[i]
+    while i < len(df): # Loop through rows of mask
+        curr = df[i]
         if type(curr) == str:
             matches = re.findall(strhandler, curr)
             curr = (matches[0:-1])
@@ -399,21 +403,46 @@ def present(df):
     for presenter in unique_presenters:
         print(presenter)
 
-    return unique_presenters
+    return unique_presenters 
 
 def main():
-    simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
+    start = time.time()
     simplefilter(action="ignore", category=FutureWarning)
-    simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
-    #df = init_and_sort()
-    df = pd.read_csv('sorted2.csv', sep='\t', encoding='utf-8')
-    nom = nominees(df)
-    print(nom)
-    show = awardshow(df)
-    host = hosts(df, show)
-    presenters = present(df)
+    x = input("Read from precreated files? [y/n] > ")
+    if x == 'y':
+        dfnom = pd.read_csv('df/nominees.csv', sep='\t', encoding='utf-8')
+        dfnom = dfnom['nominees']
+        dfshow = pd.read_csv('df/hashtag.csv', sep='\t', encoding='utf-8')
+        dfshow = dfshow['hashtag']
+        dfhost = pd.read_csv('df/host.csv', sep='\t', encoding='utf-8')
+        dfhost = dfhost['host']
+        dfpresent = pd.read_csv('df/presenter.csv', sep='\t', encoding = 'utf-8')
+        dfpresent = dfpresent['presenter']
+    else:
+        write = input("Write sorted results to csv files? [y/n] > ")
+        if write == 'y':
+            write = True
+        else:
+            write = False
+        directory = 'df'
+        
+        try:
+            mkdir(directory)
+            print(f"Directory '{directory}' created successfully.")
+        except FileExistsError:
+            print(f"Directory '{directory}' already exists.")
+        except PermissionError:
+            print(f"Permission denied: Unable to create '{directory}'.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        dfnom, dfshow, dfhost, dfpresent, dfwin = init_and_sort(write, start)
+    nom = nominees(dfnom)
+    show = awardshow(dfshow)
+    host = hosts(dfhost, show)
+    presenters = present(dfpresent)
+    
+    print("\nRuntime of:", time.time() - start, "seconds")
+    
     
 if __name__ == "__main__":
-    start = time.time()
     main()
-    print("\nRuntime of:", time.time() - start, "seconds")
