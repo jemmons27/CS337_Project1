@@ -337,7 +337,7 @@ def main():
     simplefilter(action="ignore", category=FutureWarning)
     simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
     df = init_and_sort()
-    df = pd.read_csv('sorted2.csv', sep='\t', encoding='utf-8')
+    #df = pd.read_csv('sorted2.csv', sep='\t', encoding='utf-8')
     nom = nominees(df)
     print(nom)
     show = awardshow(df)
