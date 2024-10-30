@@ -74,6 +74,8 @@ def find_hosts(tweets, award_name, earliest_time):
 
     # Define the time window (first 30 minutes from earliest_time)
     time_window = earliest_time + timedelta(minutes=30)
+    print(time_window)
+    return
 
     # List to store potential host names
     potential_hosts = []

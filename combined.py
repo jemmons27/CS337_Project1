@@ -14,11 +14,22 @@ from warnings import simplefilter
 
 
 def extract_data(path):
+    '''
+    extract_data(path: str) -> json
+    Opens file at path and returns its data
+    Expects .json files
+    '''
     with open(path, 'r') as f:
         data = json.load(f)
         return data
 
 def init_regex():
+    '''
+    init_regex(void) -> void
+    
+    inits patterns dictionary, which contains all regex patterns used in sorting tweets
+    keys are: rt, media, hashtag, host, nominees, winner, presenter
+    '''
     patterns = {
     
     "rt": [re.compile(r'RT\s@')],
@@ -116,15 +127,21 @@ def init_regex():
     return patterns
 
 def clean(text):
+    '''
+    clean(text: str) -> str
+    cleans given text
+    '''
     fixed = " ".join(text.split()).lower()
     return fixed
     
 def sort(text, patterns):
-    #takes in a tweet and list of patterns, checks if tweet matches ANY patterns
-    #if so, return all possible findall matches in an array for entire list of
-    #patterns
+    '''
+    takes in tweet text and list of patterns, checks if tweet matches ANY patterns
+    in list if so, return all possible findall matches in an array for entire list of
+    patterns
+    '''
     matches = []
-    for p in patterns:
+    for p in patterns: #list of patterns for a given key, i.e. all patterns which are used for host
         match = p.search(text)
         if match != None:
             matches.append(p.findall(text))
@@ -134,6 +151,14 @@ def sort(text, patterns):
 
 
 def init_and_sort():
+    """__summary__: Parses through all tweets in datasets and checks them against all patterns
+    for a given pattern key, for example, those that help find presenters, all successfully
+    found matches are stored into a dataframe column corresponding to the key
+
+    Returns:
+        dataframe: One column per set of patterns, contains all found matches either in tuples or strings,
+        depending on the needs of the related functions
+    """
     print("Enter dataset path: ")
     path ='gg2013.json'
     #path = input("> ")
@@ -143,55 +168,67 @@ def init_and_sort():
     keys = patterns.keys()
     
     r = r"^[\s\[']+|[\]']+$ "
+    # pattern is only used when regex interprets [' ... '] as part
+    # of the string
     cut = re.compile(r)
     
     sorted = {}
     counts = {}
     for k in keys:
-        sorted.update({k: np.empty(len(data), np.dtype('U500'))})
+        sorted.update({k: np.empty(len(data), np.dtype('U500'))}) # numpy array with one column per key
+        #in sorted, named the same, and initialized to fit all tweets in the dataset if necessary as
+        #unsigned char(500)
         counts.update({k: 0})
+        #counters to keep track of where we are in each column
     df = pd.DataFrame.from_dict(sorted)
 
     length = len(data)
     ttext = np.empty(length, dtype = np.dtype('U500'))
+    #this array is similar to sorted and stores the actual tweet text that is extracted
     tmstmp = np.empty(length, dtype=int)
+    #storage of timestamps, correlated with related tweet by index
     i=0
-    #early = data[0]['timestamp_ms']
     early = float('inf')
-    for tweet in data:
-        cleaned = clean(tweet['text'])
+    for tweet in data: #loop through each individual tweet
+        cleaned = clean(tweet['text']) #first clean tweet for consistency and put into ttext
         ttext[i] = cleaned
-        #ttext[i] = tweet['text']
         timestamp_ms = tweet['timestamp_ms']
         tmstmp[i] = timestamp_ms
-        if timestamp_ms < early:
+        timestamp_ms = datetime.fromtimestamp(int(timestamp_ms/1000)) #find the earliest timestamp to use
+        #in filtering tweets for host
+        if i == 0:
+            early = timestamp_ms
+        elif timestamp_ms < early:
             early = timestamp_ms
         i += 1
     tweetdf = pd.DataFrame.from_dict({'ttext': ttext, 'tmstmp': tmstmp})
-    time_window = datetime.fromtimestamp(early/1000) + timedelta(minutes=30)
+    time_window = early + timedelta(minutes=30)
+    print(time_window)
     
     for i in range(length):
-        text = tweetdf['ttext'][i]
+        #all tweets are now populated, now loop through all tweets for pattern matching
+        text = tweetdf['ttext'][i] 
         ms = tweetdf["tmstmp"][i]
-        ms = datetime.fromtimestamp(ms/1000)
+        ms = datetime.fromtimestamp(int(ms)/1000)
         #can make new json object here with only relevant info
-        for k in keys:
-            rgx = patterns[k]
+        for k in keys: #for each pattern category like nominees, hosts, presenters
+            rgx = patterns[k] #grab a pattern from list, check for matches and return all if there are any
             searched = sort(text, rgx)
             if searched == []:
                 continue
             curr = searched[0]
             ind = counts[k]
-            if k == 'presenter':
+            if k == 'presenter': #presenter function prefers tuples/lists of strings, this part preserves tuples only for
+                                 #presenter patterns
                 df[k][ind] = curr[0]
                 counts[k] = ind + 1
                 continue
-            for j in range(len(curr)):
-                slce = curr[j]
-                if type(slce) == tuple:
+            for j in range(len(curr)): #otherwise we want to split the tuples
+                slce = curr[j] #one tuple/list entry
+                if type(slce) == tuple: #if its nested take a guess
                     slce = slce[-1]
-                slce = re.sub(cut, '', slce)
-                if k == 'host':
+                slce = re.sub(cut, '', slce) #refer to above
+                if k == 'host': #host function wants to check for certain time window, done below
                     if ms <= time_window:
                         df[k][ind] = slce
                         counts[k] = ind + 1
@@ -202,36 +239,36 @@ def init_and_sort():
         if i % 20000 == 0:
             print("pattern matching:", i, "out of:", length)
     print(df)
-    tweetdf.to_csv('tweetdf2.csv', index=False)
+    tweetdf.to_csv('tweetdf2.csv', index=False) #save to csv for testing/quicker running
     df.to_csv('sorted2.csv', sep='\t', encoding='utf-8',index=False)
-    return df
+    return df #return the populated dataframe
 
-def nominees(df):
+def nominees(df): #find possible nominees
     model = spacy.load('en_core_web_sm')
     i=0
     res=[]
-    while i < len(df['nominees']):
-        curr = df['nominees'][i]
+    while i < len(df['nominees']): # go through nominees col of df
+        curr = df['nominees'][i] 
         i += 1
-        if type(curr) != str:
+        if type(curr) != str: #needs to be a string or invalid
             continue
         if curr == []:
             continue
-        output = model(curr)
+        output = model(curr) #thin out results with entity matching and noun chunks
         for ent in output.ents:
             if ent.label_ == 'PERSON':
                 res.append(ent.text)
         for chunk in output.noun_chunks:
             res.append(chunk.text)
             
-    res_count = Counter(res)
+    res_count = Counter(res) #count results
     return res_count    
     
     
-def awardshow(df):
-    mask = df['hashtag'].replace('', np.nan)
+def awardshow(df): #finding award show
+    mask = df['hashtag'].replace('', np.nan) #get rid of all extra rows
     mask.dropna( inplace=True)
-    counts = Counter(mask)
+    counts = Counter(mask) #count occurrences of each entry
     if counts:
         most_common_hashtag, count = counts.most_common(1)[0]
         print(f"The most mentioned hashtag is: #{most_common_hashtag}")
@@ -294,9 +331,12 @@ def present(df):
     pat = r'\band\b|&'
     pat = re.compile(pat)
     options = []
-    mask = mask.apply(ast.literal_eval)
+    strhandler = re.compile(r"'([^']*)'")
     while i < len(mask):
         curr = mask[i]
+        if type(curr) == str:
+            matches = re.findall(strhandler, curr)
+            curr = (matches[0:-1])
         i += 1
         if len(curr) == 2:
             entity_part, _ = curr
@@ -336,8 +376,8 @@ def main():
     simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
     simplefilter(action="ignore", category=FutureWarning)
     simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
-    df = init_and_sort()
-    #df = pd.read_csv('sorted2.csv', sep='\t', encoding='utf-8')
+    #df = init_and_sort()
+    df = pd.read_csv('sorted2.csv', sep='\t', encoding='utf-8')
     nom = nominees(df)
     print(nom)
     show = awardshow(df)
