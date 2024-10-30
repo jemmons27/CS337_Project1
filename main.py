@@ -64,7 +64,7 @@ def find_winners(nominees, award_name):
 
 
 
-print(parse_json("/Users/mahimaramesh/CS337_Project1/gg2013.json"))
+
 
 
 

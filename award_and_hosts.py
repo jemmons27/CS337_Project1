@@ -36,7 +36,7 @@ def find_award_name(tweets):
             hashtag_text = clean_text(tag)
             if hashtag_text:
                 hashtags.append(hashtag_text)
-
+    print(len(hashtags))
     hashtag_counts = Counter(hashtags)
 
     if hashtag_counts:
@@ -160,6 +160,7 @@ def main():
         return
 
     # Extract timestamps to find the earliest timestamp
+def hosts():
     timestamps = []
     for item in data:
         timestamp_ms = item.get('timestamp_ms', '')
