@@ -171,8 +171,6 @@ def init_and_sort():
     time_window = datetime.fromtimestamp(early/1000) + timedelta(minutes=30)
     
     for i in range(length):
-        if i > 20000:
-            continue
         text = tweetdf['ttext'][i]
         ms = tweetdf["tmstmp"][i]
         ms = datetime.fromtimestamp(ms/1000)
