@@ -228,11 +228,12 @@ def init_and_sort():
                 if type(slce) == tuple: #if its nested take a guess
                     slce = slce[-1]
                 slce = re.sub(cut, '', slce) #refer to above
+                checker = (False, False)
                 if k == 'host': #host function wants to check for certain time window, done below
                     if ms <= time_window:
                         df[k][ind] = slce
                         counts[k] = ind + 1
-                        continue
+                    continue
                 df[k][ind] = slce
                 counts[k] = ind + 1
         i += 1
@@ -266,6 +267,15 @@ def nominees(df): #find possible nominees
     
     
 def awardshow(df): #finding award show
+    """Given all hashtag matches, returns most likely name for the award show
+
+    Args:
+        df (dataframe): pandas dataframe created with init_and_sort. For this function, relevant
+        column is 'hashtag' which stores STRINGS, df['hashtag'][i] = <string>
+        
+    Returns:
+        _type_: awardshow name string
+    """
     mask = df['hashtag'].replace('', np.nan) #get rid of all extra rows
     mask.dropna( inplace=True)
     counts = Counter(mask) #count occurrences of each entry
@@ -283,25 +293,35 @@ def awardshow(df): #finding award show
     return
 
 def hosts(df, show):
+    """hosts(df, show) takes a dataframe containing relevant tweets and the awardshow name, and returns the top 2
+    most likely hosts
+
+    Args:
+        df (dataframe): Pandas dataframe created with init_and_sort(). Relevant column is 'host'
+        Entries can be tuples or strings depending on if dataframe was read or created
+        show (string): award show name 
+    """
     model = spacy.load('en_core_web_sm')
     potential_hosts = []
     normalized_award_name = clean(show.replace(' ', ''))
     i = 0
-    while i < len(df['host']):
-        curr = df['host'][i]
+    mask = df['host'] # Get rid of unpopulated rows
+    mask.dropna(inplace=True)
+    while i < len(mask): # Loop through all remaining rows
+        curr = mask[i] 
         i += 1
-        if type(curr) != str:
-            continue
-        split = re.split(r'\band\b|&', curr)
+        if isinstance(curr, tuple): # If tuple transform into string
+            curr = ' '.join(curr)
+        split = re.split(r'\band\b|&', curr) # Split into individual hosts by any existing and/& in string
         for host in split:
             host = host.strip()
             if host:
                 if normalized_award_name not in host.replace(' ', ' '):
                     potential_hosts.append(host)
         doc = model(curr)
-        for ent in doc.ents:
+        for ent in doc.ents: #Thinning results by checking entity label
             if ent.label_ == 'PERSON':
-                host_name = clean(ent.text)
+                host_name = clean(ent.text) #cleaning up
                 host_name = ' '.join(host_name.split())
                 if host_name:
                         # Exclude if host name contains award show name
@@ -309,7 +329,6 @@ def hosts(df, show):
                         potential_hosts.append(host_name)
     
     host_name_counts = Counter(potential_hosts)
-
     # Identify the top 2 most common host names
     if host_name_counts:
         most_common_hosts = host_name_counts.most_common(2)
@@ -323,16 +342,26 @@ def hosts(df, show):
 
 
 def present(df):
+    """present(df) returns list of potential presenters
+
+    Args:
+        df (dataframe): dataframe created with init_and_sort. Relevant column is 'presenter'
+        Entries are either tuples OR strings depending on if the dataframe was initialized locally
+        or read from a csv, respectively. 
+
+    Returns:
+        list[str]: possible presenters
+    """
     mask = df['presenter']
     mask.dropna(inplace=True)
     #print(mask)
     i = 0
     model = spacy.load('en_core_web_sm')
-    pat = r'\band\b|&'
+    pat = r'\band\b|&' # Pattern for and/& to split if multiple names
     pat = re.compile(pat)
     options = []
-    strhandler = re.compile(r"'([^']*)'")
-    while i < len(mask):
+    strhandler = re.compile(r"'([^']*)'") # Pattern for transforming strings of form "('x', 'y', ...)" to (x, y, ...)
+    while i < len(mask): # Loop through rows of mask
         curr = mask[i]
         if type(curr) == str:
             matches = re.findall(strhandler, curr)
