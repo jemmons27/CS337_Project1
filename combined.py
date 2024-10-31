@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timedelta
 import spacy
 import wordninja
+import difflib
 from collections import Counter
 from os import mkdir
 from fuzzywuzzy import fuzz
@@ -159,10 +160,10 @@ def init_and_sort(write, start):
                 counts[k] = ind + 1
                 continue
             if k == 'categories':
-                if isinstance(curr[0], tuple):
-                    cleaned =' in a '.join(curr[0])
-                else:
-                    cleaned=curr[0]
+                # if isinstance(curr[0], tuple):
+                #     cleaned =' in a '.join(curr[0])
+                # else:
+                cleaned=curr[0]
                 df[k][ind] = cleaned
                 counts[k] = ind + 1
                 continue
@@ -388,6 +389,39 @@ def present(df):
 
     return unique_presenters 
 
+def find_winners(df, categories):
+    answers = {}
+    i = 0
+    while i < len(df):
+        split = df[i].split(",")
+        person = split[0]
+        query = split[2]
+        maxAward = []
+        maxSeq = 0
+        for award in categories:
+            seq = difflib.SequenceMatcher(a=df[i][2].lower(), b=award.lower())
+            if seq.ratio() > maxSeq:
+                maxAward.append(award)
+                maxSeq = seq.ratio()
+            elif seq.ratio() == maxSeq:
+                maxAward.append(award)
+        if len(maxAward) > 1:
+            query_words = set(query.lower().split())
+            maxAward = max(maxAward, key=lambda award: len(query_words.intersection(award.lower().split())))
+
+            if answers.get(maxAward) == None:
+                answers[maxAward] = []
+            answers[maxAward].append(person)
+        i += 1
+    
+    top_mentions = {}
+    for award, people in answers.items():
+        # Count occurrences of each person
+        person_counts = Counter(people)
+        # Get the top 3 most common people
+        top_mentions[award] = [person for person, count in person_counts.most_common(3)]
+    return top_mentions
+
 
 def main():
     start = time.time()
@@ -404,6 +438,8 @@ def main():
         dfpresent = dfpresent['presenter']
         dfcat = pd.read_csv('df/categories.csv', sep='\t', encoding = 'utf-8')
         dfcat = dfcat['categories']
+        dfwin = pd.read_csv('df/winner.csv', sep='\t', encoding = 'utf-8')
+        dfwin = dfwin['winner']
     else:
         write = input("Write sorted results to csv files? [y/n] > ")
         if write == 'y':
@@ -423,13 +459,14 @@ def main():
             print(f"An error occurred: {e}")
         dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(write, start)
     cat = categories(dfcat)
-    #print(cat)
+    final_categories = merge_similar_categories(cat)
     nom = nominees(dfnom)
-    print(nom)
+    # print(nom)
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
     presenters = present(dfpresent)
-    
+    winners = find_winners(dfwin, final_categories)
+    print(winners)
     print("\nRuntime of:", time.time() - start, "seconds")
     
     
