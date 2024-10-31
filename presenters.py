@@ -122,7 +122,7 @@ def extract_presenters(file_path):
                             p = p.strip()
                             if p:
                                 potential_presenters.append(p)
-
+    
     # Remove duplicates by converting to a set, then back to a list
     unique_presenters = list(set(potential_presenters))
 
