@@ -149,6 +149,10 @@ def init_and_sort(write, start):
                 continue
             curr = searched[0] #################
             ind = counts[k]
+            if k=='winner':
+                df[k][ind] = curr[0]
+                counts[k] = ind + 1
+                continue
             if k == 'presenter': #presenter function prefers tuples/lists of strings, this part preserves tuples only for
                                  #presenter patterns
                 df[k][ind] = curr[0]
@@ -419,9 +423,9 @@ def main():
             print(f"An error occurred: {e}")
         dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(write, start)
     cat = categories(dfcat)
-    print(cat)
+    #print(cat)
     nom = nominees(dfnom)
-    #print(nom)
+    print(nom)
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
     presenters = present(dfpresent)
