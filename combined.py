@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 import spacy
 import wordninja
 from collections import Counter
-import ast
 from os import mkdir
+from fuzzywuzzy import fuzz
 
 from warnings import simplefilter 
 
@@ -37,92 +37,25 @@ def init_regex():
     "media": [re.compile(r'https?:\/\/t\.co\/', re.IGNORECASE)],
     "hashtag": [re.compile(r"#(\w+)", re.IGNORECASE)],
     "host": [re.compile(pattern, re.IGNORECASE) for pattern in [
-        r"([A-Za-z\s]+)\s+hosts?\b",
-        r"([A-Za-z\s]+)\.\.\.\s*hosting\b",
-        r"([A-Za-z\s]+)\s+kicks\s+off\b",   
-        r"Hosts?\s+([A-Za-z\s]+)",
-        r"([A-Za-z\s]+)\s+hosted\b",
-        r"hosted by\s+([A-Za-z\s]+)\b"
+    r"([A-Za-z\s]+)\s+(?:hosts?|hosting|kicks\s+off|hosted)\b",  # Matches various forms of hosting
+    r"hosts?\s+([A-Za-z\s]+)",  # Matches when someone is mentioned as a host
+    r"hosted by\s+([A-Za-z\s]+)\b"  # Matches hosted by someone
     ]],
-    "nominees": [re.compile(pattern, re.IGNORECASE) for pattern in [r"([A-Za-z\s]+)\s+loses\s+(best\s+\w+(?:\s\w+)*)",
-          r"([A-Za-z\s]+)\s+was\s+nominated\s+for\s+(best\s+\w+(?:\s\w+)*)",
-          r"([A-Za-z\s]+)\s+deserved\s+(best\s+\w+(?:\s\w+)*)",
-          r"([A-Za-z\s]+)\s+didn't\s+get\s+(best\s+\w+(?:\s\w+)*)",
-          r"([A-Za-z\s]+)\s+should\s+have\s+won\s+(best\s+\w+(?:\s\w+)*)",
-          r"([A-Za-z\s]+)\s+was\s+robbed",
-          r"([A-Za-z\s]+)\s+got\s+robbed",
-          r"([A-Za-z\s]+)\s+lost"]],
+    "nominees": [re.compile(pattern, re.IGNORECASE) for pattern in [
+    r"([A-Za-z\s]+)\s+(?:loses|was\s+nominated\s+for|deserved|didn't\s+get|should\s+have\s+won)\s+(best\s+\w+(?:\s\w+)*)",  # Matches various ways of discussing awards
+    r"([A-Za-z\s]+)\s+(?:was\s+robbed|got\s+robbed)",  # Matches cases where an entity was robbed
+    r"([A-Za-z\s]+)\s+lost"  # Matches simple loss
+    ]],
     "winner": [re.compile(r"([A-Za-z\s]+)\s+(wins|won by|receives|received|takes|sweeps)\s+.*?\b(best\s+\w+(?:\s\w+)*)")],
     
     "presenter": [re.compile(pattern, re.IGNORECASE) for pattern in [
-    # Pattern for "[Entity] is presenting [award]"
-    r"([A-Za-z\s&]+?)\s+is\s+presenting\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] to present [award]"
-    r"([A-Za-z\s&]+?)\s+to\s+present\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] presented [award]"
-    r"([A-Za-z\s&]+?)\s+presented\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Award] presented by [Entity]"
-    r"(?:the\s+)?(.+?)\s+presented\s+by\s+([A-Za-z\s&]+?)\b",
-
-    # Pattern for "[Entity] gives out [award]"
-    r"([A-Za-z\s&]+?)\s+gives\s+out\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] gave [award]"
-    r"([A-Za-z\s&]+?)\s+gave\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] is announcing [award]"
-    r"([A-Za-z\s&]+?)\s+is\s+announcing\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] announced [award]"
-    r"([A-Za-z\s&]+?)\s+announced\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] reveals [award]" and "[Entity] revealed [award]"
-    r"([A-Za-z\s&]+?)\s+reveal(?:s|ed)?\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] hands over [award]" and "[Entity] hands out [award]"
-    r"([A-Za-z\s&]+?)\s+hands?\s+(?:over|out)\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] unveils [award]"
-    r"([A-Za-z\s&]+?)\s+unveil(?:s|ed)?\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] introduces nominees for [award]"
-    r"([A-Za-z\s&]+?)\s+introduces?\s+nominees\s+for\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] presenting [award]"
-    r"([A-Za-z\s&]+?)\s+presenting\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Award] goes to [Recipient], presented by [Entity]"
-    r"(?:the\s+)?(.+?)\s+goes\s+to\s+(.+?),\s+presented\s+by\s+([A-Za-z\s&]+?)\b",
-
-    # Pattern for "[Entity] on stage to present [award]"
-    r"([A-Za-z\s&]+?)\s+on\s+stage\s+to\s+present\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] announces winner of [award]"
-    r"([A-Za-z\s&]+?)\s+announces?\s+winner\s+of\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] just presented [award]"
-    r"([A-Za-z\s&]+?)\s+just\s+presented\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] and [Entity] present [award]"
-    r"([A-Za-z\s&]+?)\s+and\s+([A-Za-z\s&]+?)\s+present\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] hosts [award] segment"
-    r"([A-Za-z\s&]+?)\s+hosts?\s+(?:the\s+)?(.+?)\s+segment\b",
-
-    # Pattern for "[Entity] steps up to present [award]"
-    r"([A-Za-z\s&]+?)\s+steps\s+up\s+to\s+present\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] awarding [award]"
-    r"([A-Za-z\s&]+?)\s+awarding\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] brings out [award]"
-    r"([A-Za-z\s&]+?)\s+brings?\s+out\s+(?:the\s+)?(.+?)\b",
-
-    # Pattern for "[Entity] gives [award] to [Recipient]"
-    r"([A-Za-z\s&]+?)\s+gives?\s+(?:the\s+)?(.+?)\s+to\s+([A-Za-z\s&]+?)\b"]]
+    r"([A-Za-z\s&]+?)\s+(?:is\s+presenting|to\s+present|presented|gives?\s+out|gave|is\s+announcing|announced|reveal(?:s|ed)?|hands?\s+(?:over|out)|unveil(?:s|ed)?|introduces?\s+nominees\s+for|just\s+presented|hosts?|awarding|brings?\s+out|steps\s+up\s+to\s+present|announces?\s+winner\s+of|presenting)\s+(?:the\s+)?(.+?)\b"
+    ]],
+    
+    "categories": [re.compile(
+    r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", re.IGNORECASE  # Match for Best in a category, goes to, or awarded
+    )]
+    
     }
     
     return patterns
@@ -135,7 +68,7 @@ def clean(text):
     fixed = " ".join(text.split()).lower()
     return fixed
     
-def sort(text, patterns):
+def sort(text, patterns, k):
     '''
     takes in tweet text and list of patterns, checks if tweet matches ANY patterns
     in list if so, return all possible findall matches in an array for entire list of
@@ -143,9 +76,11 @@ def sort(text, patterns):
     '''
     matches = []
     for p in patterns: #list of patterns for a given key, i.e. all patterns which are used for host
-        match = p.search(text)
-        if match != None:
-            matches.append(p.findall(text))
+        match = p.findall(text)
+        if match != []:
+            #if k == 'presenter':
+             #   print(match, p)
+            matches.append(match)
     return matches
         
                 
@@ -164,7 +99,7 @@ def init_and_sort(write, start):
     patterns = init_regex()
 
     keys = patterns.keys()
-    
+    print(keys)
     r = r"^[\s\[']+|[\]']+$ "
     # pattern is only used when regex interprets [' ... '] as part
     # of the string
@@ -201,7 +136,7 @@ def init_and_sort(write, start):
         i += 1
     time_window = early + timedelta(minutes=30)
     
-    for i in range(length): ##Category
+    for i in range(length):
         #all tweets are now populated, now loop through all tweets for pattern matching
         text = ttext[i] 
         ms = tmstmp[i]
@@ -209,14 +144,22 @@ def init_and_sort(write, start):
         #can make new json object here with only relevant info
         for k in keys: #for each pattern category like nominees, hosts, presenters
             rgx = patterns[k] #grab a pattern from list, check for matches and return all if there are any
-            searched = sort(text, rgx)
+            searched = sort(text, rgx, k)
             if searched == []:
                 continue
-            curr = searched[0]
+            curr = searched[0] #################
             ind = counts[k]
             if k == 'presenter': #presenter function prefers tuples/lists of strings, this part preserves tuples only for
                                  #presenter patterns
                 df[k][ind] = curr[0]
+                counts[k] = ind + 1
+                continue
+            if k == 'categories':
+                if isinstance(curr[0], tuple):
+                    cleaned =' in a '.join(curr[0])
+                else:
+                    cleaned=curr[0]
+                df[k][ind] = cleaned
                 counts[k] = ind + 1
                 continue
             for j in range(len(curr)): #otherwise we want to split the tuples
@@ -250,8 +193,45 @@ def init_and_sort(write, start):
     dfhost = res['host']
     dfpresent = res['presenter']
     dfwin = res['winner']
+    dfcat = res['categories']
     
-    return dfnom, dfshow, dfhost, dfpresent, dfwin
+    return dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat
+
+def categories(df): #[('supporting actress', 'in a tv movie', 'tv movie')]
+    data = []
+    i=0
+    while i < len(df):
+        match = df[i]
+        i += 1
+        cleaned_match = re.sub(r'\s+(goes to|is|for).*', '', match)
+            # Ensure the category starts with "Best"
+        if not cleaned_match.startswith("best"):
+            cleaned_match = "best " + cleaned_match
+        data.append(cleaned_match)
+    counts = Counter(data)
+    counts_dict = {str(key): value for key, value in counts.items()}
+    threshold = 5
+    filtered_category_counts = {key: value for key, value in counts_dict.items() if value >= threshold}
+
+    # Sort the filtered categories by their counts
+    sorted_filtered_category_counts = sorted(filtered_category_counts.items(), key=lambda item: item[1], reverse=True)
+    merged_category_counts = merge_similar_categories(sorted_filtered_category_counts)
+    res = sorted(merged_category_counts.items(), key=lambda item: item[1], reverse=True)
+    return res
+    
+def merge_similar_categories(categories, threshold=90):
+    merged = {}
+    for category, count in categories:
+        found = False
+        for existing_category in merged:
+            if fuzz.ratio(category.lower(), existing_category.lower()) > threshold:
+                merged[existing_category] += count
+                found = True
+                break
+        if not found:
+            merged[category] = count
+    return merged
+
 
 def nominees(df): #find possible nominees
     model = spacy.load('en_core_web_sm')
@@ -404,6 +384,7 @@ def present(df):
 
     return unique_presenters 
 
+
 def main():
     start = time.time()
     simplefilter(action="ignore", category=FutureWarning)
@@ -417,6 +398,8 @@ def main():
         dfhost = dfhost['host']
         dfpresent = pd.read_csv('df/presenter.csv', sep='\t', encoding = 'utf-8')
         dfpresent = dfpresent['presenter']
+        dfcat = pd.read_csv('df/categories.csv', sep='\t', encoding = 'utf-8')
+        dfcat = dfcat['categories']
     else:
         write = input("Write sorted results to csv files? [y/n] > ")
         if write == 'y':
@@ -434,8 +417,11 @@ def main():
             print(f"Permission denied: Unable to create '{directory}'.")
         except Exception as e:
             print(f"An error occurred: {e}")
-        dfnom, dfshow, dfhost, dfpresent, dfwin = init_and_sort(write, start)
+        dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(write, start)
+    cat = categories(dfcat)
+    print(cat)
     nom = nominees(dfnom)
+    #print(nom)
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
     presenters = present(dfpresent)
