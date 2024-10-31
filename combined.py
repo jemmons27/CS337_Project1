@@ -341,73 +341,55 @@ def hosts(df, show):
 		print("\nNo host names found.")       
 
 
-def present(df_presenters):
+def present(df_presenters, official_categories):
     """
-    Extracts presenter names and their corresponding awards from the 'presenter' column.
+    Extracts presenter names and maps their awards to the closest official categories.
 
     Args:
         df_presenters (pd.Series): Series containing tuples of (presenter_text, award_text).
+        official_categories (list): List of official award categories.
 
     Returns:
-        list[tuple]: List of tuples (presenter_name, award_name).
+        list[tuple]: List of tuples (presenter_name, matched_official_category).
     """
-    # Load SpaCy model with only NER for efficiency
     nlp = spacy.load('en_core_web_sm', disable=['parser', 'tagger'])
-
     options = []
-    pattern_and = re.compile(r'\band\b|&', re.IGNORECASE)  # Pattern to split multiple presenters
+    pattern_and = re.compile(r'\band\b|&', re.IGNORECASE)
 
-    for index, item in df_presenters.items():
-        # Ensure the item is a tuple with exactly two elements
+    for _, item in df_presenters.items():
         if not isinstance(item, tuple) or len(item) != 2:
-            print(f"Skipping invalid entry at index {index}: {item}")
             continue
-
         presenter_text, award_text = item
-
-        # Skip if either part is empty or None
         if not presenter_text or not award_text:
-            print(f"Skipping empty presenter or award at index {index}: {item}")
             continue
-
-        # Clean and ensure the award starts with "Best"
         award_text = award_text.strip()
         if not award_text.lower().startswith('best'):
             award_text = 'Best ' + award_text.capitalize()
-
-        # Preprocess presenter_text with wordninja
-        # Remove any unwanted characters except '&' and 'and'
         presenter_text_clean = re.sub(r'[^\w\s&]', '', presenter_text)
-        # Split concatenated words using wordninja
         split_presenter = wordninja.split(presenter_text_clean)
-        # Capitalize properly
-        split_presenter_cap = ' '.join([word.capitalize() for word in split_presenter])
-
-        # Use SpaCy to extract PERSON entities from the cleaned presenter_text
+        split_presenter_cap = ' '.join(word.capitalize() for word in split_presenter)
         doc = nlp(split_presenter_cap)
         person_entities = [ent.text.strip() for ent in doc.ents if ent.label_ == 'PERSON']
-
         if not person_entities:
-            #print(f"No PERSON entities found in presenter text at index {index}: '{presenter_text}'")
             continue
-
         for presenter in person_entities:
-            # Split presenters connected by "and" or "&"
             individual_presenters = pattern_and.split(presenter)
             for person in individual_presenters:
                 person = person.strip()
                 if person:
-                    # Append the (presenter, award) tuple
-                    options.append( (person, award_text) )
-
-    # Remove duplicates by converting the list of tuples to a set, then back to a list
+                    options.append((person, award_text))
+    
     unique_pairs = list(set(options))
-
-    print("\nList of presenter-award pairs:")
+    mapped_pairs = []
     for presenter, award in unique_pairs:
-        print(f"Presenter: {presenter} - Award: {award}")
-
-    return unique_pairs
+        match = process.extractOne(award, official_categories, scorer=fuzz.WRatio)
+        if match:
+            closest_category = match[0]
+            mapped_pairs.append((presenter, closest_category))
+        else:
+            mapped_pairs.append((presenter, award))
+    
+    return mapped_pairs
 
 
 
