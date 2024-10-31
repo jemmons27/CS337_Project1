@@ -102,7 +102,6 @@ def init_and_sort(start):
     cut = re.compile(r)
     
     sorted = {k: [] for k in keys}
-    counts = {k: 0 for k in keys}
         #array with one column per key
         #in sorted, named the same, and initialized to fit all tweets in the dataset if necessary as
         #unsigned char(500)
@@ -309,7 +308,7 @@ def hosts(df, show):
         print("\nNo host names found.")       
 
 
-def present(df_presenters):
+def present(df_presenters, cat):
     """
     Extracts presenter names and their corresponding awards from the 'presenter' column.
 
@@ -409,7 +408,26 @@ def find_winners(df, categories):
     return top_mentions
  
 
+def award_categories_answers(fpath):
+    award_categories_answers = []
+    with open(fpath, 'r') as file:
+        data = json.load(file)
+    for i in data["award_data"]:
+        award_categories_answers.append(i)
+    return award_categories_answers
 
+def cat_match(cat, real, tshld):
+    res = {i: [] for i in real}
+    for tup in cat:
+        entry = tup[0]
+        print(entry)
+        for i in real:
+            if (fuzz.ratio(entry, i)) > tshld:
+                tmp = res[i]
+                tmp.append(entry)
+                res[i] = tmp
+    print(res)
+    return res
 def main():
     start = time.time()
        
@@ -417,14 +435,13 @@ def main():
     
     dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start)
     cat = categories(dfcat)
-    final_categories = merge_similar_categories(cat)
+
+    fpath = 'gg2013answers.json'
+    real=award_categories_answers(fpath)
+    matched_categories = cat_match(cat, real, tshld=70)
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
-    presenters = present(dfpresent)
-    winners = find_winners(dfwin, final_categories)
-    print(winners)
-    
-    
+    presenters = present(dfpresent, matched_categories)
     
     print("\nRuntime of:", time.time() - start, "seconds")
     
