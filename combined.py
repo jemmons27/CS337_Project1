@@ -55,7 +55,7 @@ def init_regex():
 	]],
 	
 	"categories": [re.compile(
-	r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", re.IGNORECASE  # Match for Best in a category, goes to, or awarded
+	r"Best ([\w\s]+) (in a (?:[\w\s]+)|goes to|is awarded to [\w\s]+)", re.IGNORECASE  # Match for Best in a category, goes to, or awarded
 	)]
 	
 	}
@@ -170,11 +170,10 @@ def init_and_sort(write, start):
 				continue
 			if k == 'categories':
 				if isinstance(curr[0], tuple):
-					cleaned =' in a '.join(curr[0])
+					cleaned =' '.join(curr[0])
 				else:
 					cleaned=curr[0]
 				df[k][ind] = cleaned
-				print(cleaned)
 				counts[k] = ind + 1
 				continue
 			for j in range(len(curr)): #otherwise we want to split the tuples
