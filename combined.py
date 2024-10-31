@@ -33,24 +33,18 @@ def init_regex():
     '''
     patterns = {
     
-    "rt": [re.compile(r'RT\s@')],
-    "media": [re.compile(r'https?:\/\/t\.co\/', re.IGNORECASE)],
     "hashtag": [re.compile(r"#(\w+)", re.IGNORECASE)],
     "host": [re.compile(pattern, re.IGNORECASE) for pattern in [
     r"([A-Za-z\s]+)\s+(?:hosts?|hosting|kicks\s+off|hosted)\b",  # Matches various forms of hosting
-    r"hosts?\s+([A-Za-z\s]+)",  # Matches when someone is mentioned as a host
-    r"hosted by\s+([A-Za-z\s]+)\b"  # Matches hosted by someone
     ]],
     "nominees": [re.compile(pattern, re.IGNORECASE) for pattern in [
     r"([A-Za-z\s]+)\s+(?:loses|was\s+nominated\s+for|deserved|didn't\s+get|should\s+have\s+won)\s+(best\s+\w+(?:\s\w+)*)",  # Matches various ways of discussing awards
-    r"([A-Za-z\s]+)\s+(?:was\s+robbed|got\s+robbed)",  # Matches cases where an entity was robbed
-    r"([A-Za-z\s]+)\s+lost"  # Matches simple loss
     ]],
     "winner": [re.compile(r"([A-Za-z\s]+)\s+(wins|won by|receives|received|takes|sweeps)\s+.*?\b(best\s+\w+(?:\s\w+)*)")],
     
     "presenter": [re.compile(pattern, re.IGNORECASE) for pattern in [
-    r"([A-Za-z\s&]+?)\s+(?:is\s+presenting|to\s+present|presented|gives?\s+out|gave|is\s+announcing|announced|reveal(?:s|ed)?|hands?\s+(?:over|out)|unveil(?:s|ed)?|introduces?\s+nominees\s+for|just\s+presented|hosts?|awarding|brings?\s+out|steps\s+up\s+to\s+present|announces?\s+winner\s+of|presenting)\s+(?:the\s+)?(.+?)\b"
-    ]],
+	r"([A-Za-z\s&]+?)\s+(?:is\s+presenting|to\s+present|presented|gives?\s+out|gave|is\s+announcing|announced|reveal(?:s|ed)?|hands?\s+(?:over|out)|unveil(?:s|ed)?|introduces?\s+nominees\s+for|just\s+presented|hosts?|awarding|brings?\s+out|steps\s+up\s+to\s+present|announces?\s+winner\s+of|presenting)\s+(?:the\s+)?(Best\s.+?)\b"
+	]],
     
     "categories": [re.compile(
     r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", re.IGNORECASE  # Match for Best in a category, goes to, or awarded
@@ -86,7 +80,7 @@ def sort(text, patterns, k):
                 
 
 
-def init_and_sort(write, start):
+def init_and_sort(start):
     """__summary__: Parses through all tweets in datasets and checks them against all patterns
     for a given pattern key, for example, those that help find presenters, all successfully
     found matches are stored into a dataframe column corresponding to the key, then written to
@@ -105,28 +99,25 @@ def init_and_sort(write, start):
     # of the string
     cut = re.compile(r)
     
-    sorted = {}
-    counts = {}
-    for k in keys:
-        sorted.update({k: np.empty(len(data), np.dtype('U500'))}) # numpy array with one column per key
+    sorted = {k: [] for k in keys}
+    counts = {k: 0 for k in keys}
+        #array with one column per key
         #in sorted, named the same, and initialized to fit all tweets in the dataset if necessary as
         #unsigned char(500)
-        counts.update({k: 0})
         #counters to keep track of where we are in each column
-    df = pd.DataFrame.from_dict(sorted)
 
     length = len(data)
-    ttext = np.empty(length, dtype = np.dtype('U500'))
+    ttext = []
     #this array is similar to sorted and stores the actual tweet text that is extracted
-    tmstmp = np.empty(length, dtype=int)
+    tmstmp = []
     #storage of timestamps, correlated with related tweet by index
     i=0
     early = float('inf')
     for tweet in data: #loop through each individual tweet
         cleaned = clean(tweet['text']) #first clean tweet for consistency and put into ttext
-        ttext[i] = cleaned
+        ttext.append(cleaned)
         timestamp_ms = tweet['timestamp_ms']
-        tmstmp[i] = timestamp_ms
+        tmstmp.append(timestamp_ms)
         timestamp_ms = datetime.fromtimestamp(int(timestamp_ms/1000)) #find the earliest timestamp to use
         #in filtering tweets for host
         if i == 0:
@@ -135,63 +126,50 @@ def init_and_sort(write, start):
             early = timestamp_ms
         i += 1
     time_window = early + timedelta(minutes=30)
-    
+
     for i in range(length):
         #all tweets are now populated, now loop through all tweets for pattern matching
-        text = ttext[i] 
+        text = ttext[i]
         ms = tmstmp[i]
         ms = datetime.fromtimestamp(int(ms)/1000)
         #can make new json object here with only relevant info
         for k in keys: #for each pattern category like nominees, hosts, presenters
+            df=sorted[k]
             rgx = patterns[k] #grab a pattern from list, check for matches and return all if there are any
             searched = sort(text, rgx, k)
-            if searched == []:
+            if (searched == []):
                 continue
             curr = searched[0] #################
-            ind = counts[k]
-            if k=='winner':
-                df[k][ind] = curr[0]
-                counts[k] = ind + 1
-                continue
-            if k == 'presenter': #presenter function prefers tuples/lists of strings, this part preserves tuples only for
-                                 #presenter patterns
-                df[k][ind] = curr[0]
-                counts[k] = ind + 1
-                continue
             if k == 'categories':
                 if isinstance(curr[0], tuple):
                     cleaned =' in a '.join(curr[0])
                 else:
                     cleaned=curr[0]
-                df[k][ind] = cleaned
-                counts[k] = ind + 1
+                df.append(cleaned)
+                sorted[k]=df
+                continue
+            if k == 'presenter':
+                df.append(curr[0])
+                sorted[k] = df
                 continue
             for j in range(len(curr)): #otherwise we want to split the tuples
-                slce = curr[j] #one tuple/list entry
-                if type(slce) == tuple: #if its nested take a guess
-                    slce = slce[-1]
-                slce = re.sub(cut, '', slce) #refer to above
+                    slce = curr[j] #one tuple/list entry
+                    if type(slce) == tuple: #if its nested take a guess
+                        slce = slce[-1]
+                    slce = re.sub(cut, '', slce) #refer to above
                 
-                if k == 'host': #host function wants to check for certain time window, done below
-                    if ms <= time_window:
-                        df[k][ind] = slce
-                        counts[k] = ind + 1
-                    continue
-                df[k][ind] = slce
-                counts[k] = ind + 1
+                    if k == 'host': #host function wants to check for certain time window, done below
+                        if ms <= time_window:
+                            df.append(slce)
+                            sorted[k] = df
+                        continue
+                    df.append(slce)
+                    sorted[k]=df
         i += 1
         if i % 20000 == 0:
             print("\n", time.time() - start, "seconds")
             print("sorted", i, "out of", length)
-    tweetdf = pd.DataFrame.from_dict({'ttext': ttext, 'tmstmp': tmstmp})
-    tweetdf.to_csv('tweetdf3.csv', sep='\t', index=False) #save to csv for testing/quicker running
-    res = {}
-    for k in keys:
-        mask = df[k].replace('', np.nan) #get rid of all extra rows
-        mask.dropna(inplace=True)
-        if write:
-            mask.to_csv('df/' + k + '.csv', sep='\t', index=False)
-        res[k] = mask
+    res = sorted
     dfnom = res['nominees']
     dfshow = res['hashtag']
     dfhost = res['host']
@@ -330,102 +308,86 @@ def hosts(df, show):
         print("\nNo host names found.")       
 
 
-def present(df):
-    """present(df) returns list of potential presenters
+def present(df_presenters):
+    """
+    Extracts presenter names and their corresponding awards from the 'presenter' column.
 
     Args:
-        df (dataframe): dataframe created with init_and_sort. Relevant column is 'presenter'
-        Entries are either tuples OR strings depending on if the dataframe was initialized locally
-        or read from a csv, respectively. 
+        df_presenters (pd.Series): Series containing tuples of (presenter_text, award_text).
 
     Returns:
-        list[str]: possible presenters
+        list[tuple]: List of tuples (presenter_name, award_name).
     """
-    #print(mask)
-    i = 0
-    model = spacy.load('en_core_web_sm')
-    pat = r'\band\b|&' # Pattern for and/& to split if multiple names
-    pat = re.compile(pat)
+    # Load SpaCy model with only NER for efficiency
+    nlp = spacy.load('en_core_web_sm', disable=['parser', 'tagger', 'lemmatizer'])
+
     options = []
-    strhandler = re.compile(r"'([^']*)'") # Pattern for transforming strings of form "('x', 'y', ...)" to (x, y, ...)
-    while i < len(df): # Loop through rows of mask
-        curr = df[i]
-        if type(curr) == str:
-            matches = re.findall(strhandler, curr)
-            curr = (matches[0:-1])
-        i += 1
-        if len(curr) == 2:
-            entity_part, _ = curr
-        elif len(curr) == 3:
-            # Handle patterns with two entities (e.g., presenters connected by 'and')
-            #print(pat.search(' '.join(curr.split())))
-            entity_part = f"{curr[0]} and {curr[1]}"
-            '''
-            if pat.search(curr):
-                entity_part = f"{curr[0]} and {curr[1]}"
-            else:
-                entity_part = curr[0]
-                '''
-        else:
-            continue  # Skip if the match doesn't fit expected patterns 
-        doc = model(entity_part)
-        for ent in doc.ents:
-            if ent.label_ == 'PERSON':
-                presenter_name = ent.text.strip()
-                # Handle multiple presenters connected by 'and' or '&'
-                individual_presenters = re.split(r'\band\b|&', presenter_name)
-                for person in individual_presenters:
-                    person = person.strip()
-                    if person:
-                        options.append(person)
-    #print(options)
-    # Remove duplicates by converting to a set, then back to a list
-    unique_presenters = list(set(options))
+    pattern_and = re.compile(r'\band\b|&', re.IGNORECASE)  # Pattern to split multiple presenters
 
-    print("\nList of potential presenters:")
-    for presenter in unique_presenters:
-        print(presenter)
+    for item in df_presenters:
+        # Ensure the item is a tuple with exactly two elements
+        if not isinstance(item, tuple) or len(item) != 2:
+            print(f"Skipping invalid entry")
+            continue
 
-    return unique_presenters 
+        presenter_text, award_text = item
+
+        # Skip if either part is empty or None
+        if not presenter_text or not award_text:
+            print(f"Skipping empty presenter or award {item}")
+            continue
+
+        # Clean and ensure the award starts with "Best"
+        award_text = award_text.strip()
+        if not award_text.lower().startswith('best'):
+            award_text = 'Best ' + award_text.capitalize()
+
+        # Preprocess presenter_text with wordninja
+        # Remove any unwanted characters except '&' and 'and'
+        presenter_text_clean = re.sub(r'[^\w\s&]', '', presenter_text)
+        # Split concatenated words using wordninja
+        split_presenter = wordninja.split(presenter_text_clean)
+        # Capitalize properly
+        split_presenter_cap = ' '.join([word.capitalize() for word in split_presenter])
+
+        # Use SpaCy to extract PERSON entities from the cleaned presenter_text
+        doc = nlp(split_presenter_cap)
+        person_entities = [ent.text.strip() for ent in doc.ents if ent.label_ == 'PERSON']
+
+        if not person_entities:
+            #print(f"No PERSON entities found in presenter text at index {index}: '{presenter_text}'")
+            continue
+
+        for presenter in person_entities:
+            # Split presenters connected by "and" or "&"
+            individual_presenters = pattern_and.split(presenter)
+            for person in individual_presenters:
+                person = person.strip()
+                if person:
+                    # Append the (presenter, award) tuple
+                    options.append( (person, award_text) )
+
+    # Remove duplicates by converting the list of tuples to a set, then back to a list
+    unique_pairs = list(set(options))
+
+    print("\nList of presenter-award pairs:")
+    for presenter, award in unique_pairs:
+        print(f"Presenter: {presenter} - Award: {award}")
+
+    return unique_pairs
+ 
 
 
 def main():
     start = time.time()
-    simplefilter(action="ignore", category=FutureWarning)
-    x = input("Read from precreated files? [y/n] > ")
-    if x == 'y':
-        dfnom = pd.read_csv('df/nominees.csv', sep='\t', encoding='utf-8')
-        dfnom = dfnom['nominees']
-        dfshow = pd.read_csv('df/hashtag.csv', sep='\t', encoding='utf-8')
-        dfshow = dfshow['hashtag']
-        dfhost = pd.read_csv('df/host.csv', sep='\t', encoding='utf-8')
-        dfhost = dfhost['host']
-        dfpresent = pd.read_csv('df/presenter.csv', sep='\t', encoding = 'utf-8')
-        dfpresent = dfpresent['presenter']
-        dfcat = pd.read_csv('df/categories.csv', sep='\t', encoding = 'utf-8')
-        dfcat = dfcat['categories']
-    else:
-        write = input("Write sorted results to csv files? [y/n] > ")
-        if write == 'y':
-            write = True
-        else:
-            write = False
-        directory = 'df'
+       
         
-        try:
-            mkdir(directory)
-            print(f"Directory '{directory}' created successfully.")
-        except FileExistsError:
-            print(f"Directory '{directory}' already exists.")
-        except PermissionError:
-            print(f"Permission denied: Unable to create '{directory}'.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-        dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(write, start)
+    
+    dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start)
     cat = categories(dfcat)
     #print(cat)
     nom = nominees(dfnom)
-    print(nom)
+    #print(nom)
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
     presenters = present(dfpresent)
