@@ -426,6 +426,12 @@ def find_winners(df, categories):
 	
 	return top_mentions
 
+import json
+import spacy
+from textblob import TextBlob
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections import Counter, defaultdict
+
 def analyze_parties(tweets_file_path):
     """
     Analyzes party mentions and sentiments from tweets loaded from a JSON file.
@@ -464,22 +470,33 @@ def analyze_parties(tweets_file_path):
         print(f"Error decoding JSON from the tweets file at path: {tweets_file_path}")
         return {}
     
-    with ThreadPoolExecutor() as executor:
-        futures = {executor.submit(extract_parties, tweet['text']): tweet for tweet in tweets if 'text' in tweet}
-        for future in as_completed(futures):
-            tweet = futures[future]
-            try:
-                parties = future.result()
-                if parties:
-                    sentiment = analyze_sentiment(tweet['text'])
-                    for party in parties:
-                        party_counter[party] += 1
-                        party_sentiment[party].append(sentiment)
-            except Exception as e:
-                print(f"Error processing tweet: {e}")
-                continue  # Optionally log exceptions
+    def process_tweets(tweets):
+        texts = [tweet['text'] for tweet in tweets]
+        docs = list(nlp.pipe(texts, batch_size=50))
+        for tweet, doc in zip(tweets, docs):
+            parties = [ent.text for ent in doc.ents if ent.label_ in ['ORG', 'EVENT'] and any(keyword in ent.text.lower() for keyword in party_keywords)]
+            if parties:
+                tweet['parties'] = parties
+                tweet['sentiment'] = analyze_sentiment(tweet['text'])
+        return tweets
     
-    party_avg_sentiment = {party: sum(sentiments)/len(sentiments) for party, sentiments in party_sentiment.items()}
+    # Process the tweets in parallel
+    batch_size = 100
+    processed_data = []
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(process_tweets, tweets[i:i + batch_size]) for i in range(0, len(tweets), batch_size)]
+        for future in as_completed(futures):
+            processed_data.extend(future.result())
+    
+    # Count party mentions and aggregate sentiment
+    for tweet in processed_data:
+        if 'parties' in tweet:
+            for party in tweet['parties']:
+                party_counter[party] += 1
+                party_sentiment[party].append(tweet['sentiment'])
+    
+    # Calculate average sentiment for each party
+    party_avg_sentiment = {party: sum(sentiments) / len(sentiments) for party, sentiments in party_sentiment.items()}
     
     most_attended_party = max(party_counter, key=party_counter.get) if party_counter else None
     party_with_highest_sentiment = max(party_avg_sentiment, key=party_avg_sentiment.get) if party_avg_sentiment else None

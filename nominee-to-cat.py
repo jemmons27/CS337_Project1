@@ -33,9 +33,9 @@ def map_nominees_to_categories(tweets, award_categories, nominees):
     return dict(nominee_to_categories)
 
 # Example usage:
-tweets_file_path = "gg2013.json"
-award_categories_file_path = "df/categories.csv"
-nominees_file_path = "df/nominees.csv"
+tweets_file_path = "/Users/jasminemeyer/CS337_Project1/gg2013.json"
+award_categories_file_path = "/Users/jasminemeyer/CS337_Project1/categories.json"
+nominees_file_path = "/Users/jasminemeyer/CS337_Project1/df/nominees.csv"
 
 # Load data
 with open(tweets_file_path, 'r') as file:
