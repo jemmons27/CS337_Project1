@@ -30,7 +30,7 @@ def process_tweets(tweets):
     return tweets
 
 # Load the JSON data from the file
-with open('/Users/jasminemeyer/CS337_Project1/gg2013.json', 'r') as file:
+with open('gg2013.json', 'r') as file:
     data = json.load(file)
 
 # Process the tweets in parallel
@@ -60,7 +60,7 @@ results = {
     'party_avg_sentiment': party_avg_sentiment
 }
 
-with open('/Users/jasminemeyer/CS337_Project1/party_analysis_results.json', 'w') as file:
-    json.dump(results, file, indent=4)
+# with open('/Users/jasminemeyer/CS337_Project1/party_analysis_results.json', 'w') as file:
+#     json.dump(results, file, indent=4)
 
-print("Party analysis results saved to party_analysis_results.json")
+# print("Party analysis results saved to party_analysis_results.json")

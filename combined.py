@@ -8,10 +8,13 @@ from datetime import datetime, timedelta
 import spacy
 import wordninja
 import difflib
-from collections import Counter
+from collections import Counter, defaultdict
 from os import mkdir
 from fuzzywuzzy import fuzz, process
 import wordninja
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from textblob import TextBlob
+
 
 from warnings import simplefilter 
 
@@ -423,6 +426,72 @@ def find_winners(df, categories):
 	
 	return top_mentions
 
+def analyze_parties(tweets_file_path):
+    """
+    Analyzes party mentions and sentiments from tweets loaded from a JSON file.
+    
+    Args:
+        tweets_file_path (str): Path to the JSON file containing tweets.
+    
+    Returns:
+        dict: {
+            'party_mentions': dict,
+            'party_avg_sentiment': dict,
+            'most_attended_party': str or None,
+            'party_with_highest_sentiment': str or None
+        }
+    """
+    nlp = spacy.load('en_core_web_sm')
+    party_keywords = ['party', 'after-party', 'afterparty', 'celebration', 'gala']
+    party_counter = Counter()
+    party_sentiment = defaultdict(list)
+    
+    def analyze_sentiment(text):
+        return TextBlob(text).sentiment.polarity
+    
+    def extract_parties(text):
+        doc = nlp(text)
+        return [ent.text for ent in doc.ents if ent.label_ in ['ORG', 'EVENT'] and any(keyword in ent.text.lower() for keyword in party_keywords)]
+    
+    # Load tweets from the JSON file
+    try:
+        with open(tweets_file_path, 'r', encoding='utf-8') as file:
+            tweets = json.load(file)
+    except FileNotFoundError:
+        print(f"Tweets file not found at path: {tweets_file_path}")
+        return {}
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from the tweets file at path: {tweets_file_path}")
+        return {}
+    
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(extract_parties, tweet['text']): tweet for tweet in tweets if 'text' in tweet}
+        for future in as_completed(futures):
+            tweet = futures[future]
+            try:
+                parties = future.result()
+                if parties:
+                    sentiment = analyze_sentiment(tweet['text'])
+                    for party in parties:
+                        party_counter[party] += 1
+                        party_sentiment[party].append(sentiment)
+            except Exception as e:
+                print(f"Error processing tweet: {e}")
+                continue  # Optionally log exceptions
+    
+    party_avg_sentiment = {party: sum(sentiments)/len(sentiments) for party, sentiments in party_sentiment.items()}
+    
+    most_attended_party = max(party_counter, key=party_counter.get) if party_counter else None
+    party_with_highest_sentiment = max(party_avg_sentiment, key=party_avg_sentiment.get) if party_avg_sentiment else None
+    
+    return {
+        'party_mentions': dict(party_counter),
+        'party_avg_sentiment': party_avg_sentiment,
+        'most_attended_party': most_attended_party,
+        'party_with_highest_sentiment': party_with_highest_sentiment
+    }
+
+
 def construct_output(show, hosts, presenters, winners, nominees, official_categories):
     """
     Constructs the final JSON output with hosts and award data.
@@ -455,6 +524,54 @@ def construct_output(show, hosts, presenters, winners, nominees, official_catego
     
     return output
 
+#Format in human-readable form
+
+def format_human_readable(output, party_analysis):
+    """
+    Formats the award show data into a human-readable string, including party analysis.
+    
+    Args:
+        output (dict): The structured JSON output.
+        party_analysis (dict): Party analysis results.
+    
+    Returns:
+        str: Human-readable formatted string.
+    """
+    lines = []
+    lines.append(f"Award show: {output.get('Award show', '')}\n")
+    
+    hosts = output.get('hosts', [])
+    if hosts:
+        lines.append(f"Hosts: {', '.join(hosts)}\n")
+    
+    for category, details in output.get('award_data', {}).items():
+        lines.append(f"Award: {category}")
+        if details["presenters"]:
+            lines.append(f"Presenters: {', '.join(details['presenters'])}")
+        if details["nominees"]:
+            nominees_str = ', '.join(f'"{nom}"' for nom in details["nominees"])
+            lines.append(f"Nominees: {nominees_str}")
+        if details["winner"]:
+            lines.append(f"Winner: \"{details['winner']}\"\n")
+        else:
+            lines.append("")  # Add a newline if there's no winner
+    
+    # Add Party Analysis
+    if party_analysis:
+        most_attended_party = party_analysis.get('most_attended_party')
+        party_with_highest_sentiment = party_analysis.get('party_with_highest_sentiment')
+        party_avg_sentiment = party_analysis.get('party_avg_sentiment', {})
+        
+        if most_attended_party:
+            mentions = party_analysis.get('party_mentions', {}).get(most_attended_party, 0)
+            lines.append(f"Most attended party: {most_attended_party} ({mentions} mentions)")
+        
+        if party_with_highest_sentiment:
+            sentiment_score = party_avg_sentiment.get(party_with_highest_sentiment, 0)
+            sentiment = "positive" if sentiment_score > 0 else "negative"
+            lines.append(f"Party with highest sentiment: {party_with_highest_sentiment} ({sentiment}, score: {sentiment_score:.2f})")
+    
+    return '\n'.join(lines)
 
 def main():
 	start = time.time()
@@ -491,22 +608,25 @@ def main():
 		except Exception as e:
 			print(f"An error occurred: {e}")
 		dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(write, start)
-	cat = categories(dfcat)
-	final_categories = merge_similar_categories(cat)
+	# cat = categories(dfcat)
+	# final_categories = merge_similar_categories(cat)
 	#print(cat)
-	nom = nominees(dfnom)
-	print(nom)
-	show = awardshow(dfshow)
-	host = hosts(dfhost, show)
-	presenters = present(dfpresent,final_categories)
-	winners = find_winners(dfwin, final_categories)
-	print(winners)
-	print ("Final output:")
-	#CHANGE PARAMS IF NEEDED
-	print(show, host, presenters, winners, nom, final_categories)
+	# nom = nominees(dfnom)
+	# print(nom)
+	# show = awardshow(dfshow)
+	# host = hosts(dfhost, show)
+	# presenters = present(dfpresent,final_categories)
+	# winners = find_winners(dfwin, final_categories)
+	# print(winners)
+	
+	print("PARTIES")
+	parties= analyze_parties('gg2013.json')
+	print(parties)
 	
 	print("\nRuntime of:", time.time() - start, "seconds")
 	
 	
 if __name__ == "__main__":
 	main()
+
+	

@@ -1,7 +1,7 @@
 import json
 
 # Load the JSON data from the file
-with open('/Users/jasminemeyer/CS337_Project1/party_analysis_results.json', 'r') as file:
+with open('party_analysis_results.json', 'r') as file:
     results = json.load(file)
 
 party_mentions = results['party_mentions']
