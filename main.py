@@ -1,8 +1,11 @@
 import re
 import json
 import spacy
+from cydifflib import SequenceMatcher
+import difflib
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
+from collections import Counter
 
 #preprocess data and most hashtags = award show
 
@@ -44,58 +47,44 @@ def parse_json(file_path, file_path_answers):
         data = json.load(file)
     with open(file_path_answers, 'r') as file:
         data_answers = json.load(file)
-    nominees = ["zero dark thirty", "lincoln", "silver linings playbook", "argo", "django unchained"]
-    
-    result = ''
     regex = r"([A-Za-z\s]+)\s+(wins|won by|receives|received|takes|sweeps)\s+.*?\b(best\s+[\w\s]+)"
     categories = award_categories_answers("/Users/mahimaramesh/CS337_Project1/gg2013answers.json")
-    
+    answers = {}
    
     for item in data:
         
         match = re.findall(regex, item["text"])
         if match:
-            
-            
-
             for i in match:
                 person = i[0]
                         
                 query = i[2]
-                potential_matches = process.extract(query, categories, limit=15)
-                split = query.split(" ")
-                
-                filtered_matches = [
-    match for match, score in potential_matches
-    if all(word in match.lower() for word in split)]
-                print(person, filtered_matches)
-                
-                
-            
-                for i in filtered_matches:
-                    nominees = []
-                    nominees.extend(data_answers["award_data"][i]["nominees"])
-                    nominees.append(data_answers["award_data"][i]["winner"])
-                    person = person.lower()
-                    if person in nominees:
-                        
-                        print(person, i)
+                maxAward = []
+                maxSeq = 0
+                for award in categories:
+                    seq = difflib.SequenceMatcher(a=i[2].lower(), b=award.lower())
+                    if seq.ratio() > maxSeq:
+                        maxAward.append(award)
+                        maxSeq = seq.ratio()
+                    elif seq.ratio() == maxSeq:
+                        maxAward.append(award)
+                if len(maxAward) > 1:
+                    query_words = set(query.lower().split())
+                    maxAward = max(maxAward, key=lambda award: len(query_words.intersection(award.lower().split())))
 
-
-
-
-            
-            # for token in match:
-            #     # Normalize the token text to lowercase for comparison
-            #     normalized_token = token.text.lower()
-            #     if normalized_token in nominees:
-            #         result += f"Match found: {normalized_token}\n"
-            #         print(f"Match found: {normalized_token}")  # Optional: print to console
-
-
+                    if answers.get(maxAward) == None:
+                        answers[maxAward] = []
+                    answers[maxAward].append(person)
     
-    
+    top_mentions = {}
+    for award, people in answers.items():
+        # Count occurrences of each person
+        person_counts = Counter(people)
+        # Get the top 3 most common people
+        top_mentions[award] = [person for person, count in person_counts.most_common(3)]
 
+    print(Counter(answers["best television series - drama"]))
+                
 
 def regex_splitting(string, regex):
     match = re.findall(regex, string)
