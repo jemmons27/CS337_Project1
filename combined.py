@@ -11,8 +11,7 @@ from collections import Counter, defaultdict
 from os import mkdir
 from fuzzywuzzy import fuzz, process
 import wordninja
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from textblob import TextBlob
+
 
 
 
