@@ -36,7 +36,7 @@ def find_award_name(tweets):
             hashtag_text = clean_text(tag)
             if hashtag_text:
                 hashtags.append(hashtag_text)
-
+    print(len(hashtags))
     hashtag_counts = Counter(hashtags)
 
     if hashtag_counts:
@@ -74,6 +74,8 @@ def find_hosts(tweets, award_name, earliest_time):
 
     # Define the time window (first 30 minutes from earliest_time)
     time_window = earliest_time + timedelta(minutes=30)
+    print(time_window)
+    return
 
     # List to store potential host names
     potential_hosts = []
@@ -160,6 +162,7 @@ def main():
         return
 
     # Extract timestamps to find the earliest timestamp
+def hosts():
     timestamps = []
     for item in data:
         timestamp_ms = item.get('timestamp_ms', '')

@@ -26,12 +26,16 @@ def nominees(input):
     with open(input, 'r') as file:
         data=json.load(file)
     res = []
+    i = 0
     for tweet in data:
         #cleaned = unidecode.unidecode_expect_nonascii(tweet['text']) #emojis
         #cleaned = fix_text(cleaned) #&AMP -> &
         #cleaned = " ".join(cleaned.split()) #Extra White Space
         #output = model(cleaned)
         body = tweet['text']
+        i += 1
+        if i % 3000 == 0:
+            print(i)
         has_pattern = False
         for pattern in compiled_patterns:
             if pattern.search(body):
@@ -40,10 +44,10 @@ def nominees(input):
         if has_pattern:
             for pattern in compiled_patterns:
                 matches=pattern.findall(body)
-            
+                print(matches)
                 if matches == []:
                     continue
-                elif isinstance(matches[0], tuple):
+                if isinstance(matches[0], tuple):
                     matches = ' '.join(matches[0])
                 else:
                     #print(matches)
@@ -52,8 +56,11 @@ def nominees(input):
                     output = model(nominee)
                     for chunk in output.noun_chunks:
                         res.append(chunk.text)
+        if i == 50000:
+            print(res)
+            break
     res_count = Counter(res)        
-    print(res_count)
+    return res_count
     
 nominees('gg2013.json')
 
