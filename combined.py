@@ -435,8 +435,13 @@ def main():
     
     dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start)
     cat = categories(dfcat)
-
-    fpath = 'gg2013answers.json'
+    print('Input categories? [y/n] > ')
+    x = input()
+    if x == 'y':
+        print('Enter Path > ')
+        fpath=input()
+    else:
+        fpath='gg2013answers.json'
     real=award_categories_answers(fpath)
     matched_categories = cat_match(cat, real, tshld=70)
     show = awardshow(dfshow)
