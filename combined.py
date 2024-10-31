@@ -55,7 +55,7 @@ def init_regex():
 	]],
 	
 	"categories": [re.compile(
-	r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", re.IGNORECASE  # Match for Best in a category, goes to, or awarded
+	r"Best ([\w\s]+) (in a (?:[\w\s]+)|goes to|is awarded to [\w\s]+)", re.IGNORECASE  # Match for Best in a category, goes to, or awarded
 	)]
 	
 	}
@@ -170,7 +170,7 @@ def init_and_sort(write, start):
 				continue
 			if k == 'categories':
 				if isinstance(curr[0], tuple):
-					cleaned =' in a '.join(curr[0])
+					cleaned =' '.join(curr[0])
 				else:
 					cleaned=curr[0]
 				df[k][ind] = cleaned
@@ -289,7 +289,6 @@ def awardshow(df): #finding award show
 		words = wordninja.split(most_common_hashtag)
 		# Capitalize each word
 		award_name = ' '.join(word.capitalize() for word in words)
-		print(f"The award show name is: {award_name}")
 		return award_name
 	return
 
@@ -306,6 +305,7 @@ def hosts(df, show):
 	potential_hosts = []
 	normalized_award_name = clean(show.replace(' ', ''))
 	i = 0
+	res=[]
 	while i < len(df): # Loop through all remaining rows
 		curr = df[i] 
 		i += 1
@@ -332,65 +332,128 @@ def hosts(df, show):
 	if host_name_counts:
 		most_common_hosts = host_name_counts.most_common(2)
 		print("\nTop 2 most likely host(s):")
+		
 		for host, count in most_common_hosts:
 			# Capitalize each word in the host name
 			host_name_formatted = ' '.join(word.capitalize() for word in host.split())
-			print(f"- {host_name_formatted}: mentioned {count} times")
-	else:
-		print("\nNo host names found.")       
+			res.append(host_name_formatted)
+	return res     
 
 
-def present(df_presenters, official_categories):
-	"""
-	Extracts presenter names and maps their awards to the closest official categories.
+def present(df_presenters, categories):
+    """
+    Extracts presenter names and maps their awards to the closest official categories.
 
-	Args:
-		df_presenters (pd.Series): Series containing tuples of (presenter_text, award_text).
-		official_categories (list): List of official award categories.
+    Args:
+        df_presenters (pd.Series): Series containing tuples of (presenter_text, award_text).
+        official_categories (list): List of official award categories.
 
-	Returns:
-		list[tuple]: List of tuples (presenter_name, matched_official_category).
-	"""
-	nlp = spacy.load('en_core_web_sm', disable=['parser', 'tagger'])
-	options = []
-	pattern_and = re.compile(r'\band\b|&', re.IGNORECASE)
+    Returns:
+        list[tuple]: List of tuples (presenter_name, matched_official_category).
+    """
+    nlp = spacy.load('en_core_web_sm', disable=['parser', 'tagger'])
+    options = []
+    pattern_and = re.compile(r'\band\b|&', re.IGNORECASE)
 
-	for _, item in df_presenters.items():
-		if not isinstance(item, tuple) or len(item) != 2:
-			continue
-		presenter_text, award_text = item
-		if not presenter_text or not award_text:
-			continue
-		award_text = award_text.strip()
-		if not award_text.lower().startswith('best'):
-			award_text = 'Best ' + award_text.capitalize()
-		presenter_text_clean = re.sub(r'[^\w\s&]', '', presenter_text)
-		split_presenter = wordninja.split(presenter_text_clean)
-		split_presenter_cap = ' '.join(word.capitalize() for word in split_presenter)
-		doc = nlp(split_presenter_cap)
-		person_entities = [ent.text.strip() for ent in doc.ents if ent.label_ == 'PERSON']
-		if not person_entities:
-			continue
-		for presenter in person_entities:
-			individual_presenters = pattern_and.split(presenter)
-			for person in individual_presenters:
-				person = person.strip()
-				if person:
-					options.append((person, award_text))
+    for _, item in df_presenters.items():
+        if not isinstance(item, tuple) or len(item) != 2:
+            continue
+        presenter_text, award_text = item
+        if not presenter_text or not award_text:
+            continue
+        award_text = award_text.strip()
+        if not award_text.lower().startswith('best'):
+            award_text = 'Best ' + award_text.capitalize()
+        presenter_text_clean = re.sub(r'[^\w\s&]', '', presenter_text)
+        split_presenter = wordninja.split(presenter_text_clean)
+        split_presenter_cap = ' '.join(word.capitalize() for word in split_presenter)
+        doc = nlp(split_presenter_cap)
+        person_entities = [ent.text.strip() for ent in doc.ents if ent.label_ == 'PERSON']
+        if not person_entities:
+            continue
+        for presenter in person_entities:
+            individual_presenters = pattern_and.split(presenter)
+            for person in individual_presenters:
+                person = person.strip()
+                if person:
+                    options.append((person, award_text))
+    
+    unique_pairs = list(set(options))
+    mapped_pairs = []
+    for presenter, award in unique_pairs:
+        match = process.extractOne(award, categories, scorer=fuzz.WRatio)
+        if match:
+            closest_category = match[0]
+            mapped_pairs.append((presenter, closest_category))
+        else:
+            mapped_pairs.append((presenter, award))
+    
+    return mapped_pairs
+
+
+
+def find_winners(df, categories):
 	
-	unique_pairs = list(set(options))
-	mapped_pairs = []
-	for presenter, award in unique_pairs:
-		match = process.extractOne(award, official_categories, scorer=fuzz.WRatio)
-		if match:
-			closest_category = match[0]
-			mapped_pairs.append((presenter, closest_category))
-		else:
-			mapped_pairs.append((presenter, award))
-	print("OFFICIAL PAIRSS")
-	print(mapped_pairs)
-	return mapped_pairs
+	answers = {}
+	i = 0
 
+	while i < len(df):
+		# split = df[i].split(",")
+		person = df[i][0]
+		query = df[i][2]
+		maxAward = []
+		maxSeq = 0
+		for award in categories:
+			seq = difflib.SequenceMatcher(a=query.lower(), b=award.lower())
+			if seq.ratio() >= maxSeq:
+				maxAward.append(award)
+				maxSeq = seq.ratio()
+		if len(maxAward) > 1:
+			query_words = set(query.lower().split())
+			maxAward = max(maxAward, key=lambda award: len(query_words.intersection(award.lower().split())))
+			if answers.get(maxAward) == None:
+				answers[maxAward] = []
+				answers[maxAward].append(person)
+		i += 1
+	top_mentions = {}
+	for award, people in answers.items():
+		person_counts = Counter(people)
+		# Get the top 3 most common people
+		top_mentions[award] = [person for person, count in person_counts.most_common(3)]
+	
+	return top_mentions
+
+def construct_output(show, hosts, presenters, winners, nominees, official_categories):
+    """
+    Constructs the final JSON output with hosts and award data.
+    
+    Args:
+        show (str): Name of the award show.
+        hosts (list): List of host names.
+        presenters (list[tuple]): List of tuples (presenter_name, matched_official_category).
+        winners (dict): Dictionary mapping categories to winners.
+        nominees (dict): Dictionary mapping categories to nominees.
+        official_categories (list): List of official award categories.
+    
+    Returns:
+        dict: Structured JSON output.
+    """
+    award_data = {category: {"nominees": nominees.get(category, []),
+                             "presenters": [],
+                             "winner": winners.get(category, "")}
+                  for category in official_categories}
+    
+    for presenter, category in presenters:
+        if category in award_data:
+            award_data[category]["presenters"].append(presenter)
+    
+    output = {
+        "Award show": show,
+        "hosts": hosts,
+        "award_data": award_data
+    }
+    
+    return output
 
 
 def main():
@@ -408,6 +471,8 @@ def main():
 		dfpresent = dfpresent['presenter']
 		dfcat = pd.read_csv('df/categories.csv', sep='\t', encoding = 'utf-8')
 		dfcat = dfcat['categories']
+		dfwin = pd.read_csv('df/winner.csv', sep='\t', encoding = 'utf-8')
+		dfwin = dfwin['winner']
 	else:
 		write = input("Write sorted results to csv files? [y/n] > ")
 		if write == 'y':
@@ -427,12 +492,18 @@ def main():
 			print(f"An error occurred: {e}")
 		dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(write, start)
 	cat = categories(dfcat)
+	final_categories = merge_similar_categories(cat)
 	#print(cat)
 	nom = nominees(dfnom)
 	print(nom)
 	show = awardshow(dfshow)
 	host = hosts(dfhost, show)
-	presenters = present(dfpresent, cat)
+	presenters = present(dfpresent,final_categories)
+	winners = find_winners(dfwin, final_categories)
+	print(winners)
+	print ("Final output:")
+	#CHANGE PARAMS IF NEEDED
+	print(show, host, presenters, winners, nom, final_categories)
 	
 	print("\nRuntime of:", time.time() - start, "seconds")
 	
