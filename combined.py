@@ -15,14 +15,14 @@ import wordninja
 
 
 def extract_data(path):
-	'''
-	extract_data(path: str) -> json
-	Opens file at path and returns its data
-	Expects .json files
-	'''
-	with open(path, 'r') as f:
-		data = json.load(f)
-		return data
+    '''
+    extract_data(path: str) -> json
+    Opens file at path and returns its data
+    Expects .json files
+    '''
+    with open(path, 'r') as f:
+        data = json.load(f)
+        return data
 
 def init_regex():
     '''
@@ -43,13 +43,13 @@ def init_regex():
     "winner": [re.compile(r"([A-Za-z\s]+)\s+(wins|won by|receives|received|takes|sweeps)\s+.*?\b(best\s+\w+(?:\s\w+)*)")],
     
     "presenter": [re.compile(pattern, re.IGNORECASE) for pattern in [
-	r"([A-Za-z\s&]+?)\s+(?:is\s+presenting|to\s+present|presented|gives?\s+out|gave|is\s+announcing|announced|reveal(?:s|ed)?|hands?\s+(?:over|out)|unveil(?:s|ed)?|introduces?\s+nominees\s+for|just\s+presented|hosts?|awarding|brings?\s+out|steps\s+up\s+to\s+present|announces?\s+winner\s+of|presenting)\s+(?:the\s+)?(Best\s.+?)\b"
-	]],
+    r"([A-Za-z\s&]+?)\s+(?:is\s+presenting|to\s+present|presented|gives?\s+out|gave|is\s+announcing|announced|reveal(?:s|ed)?|hands?\s+(?:over|out)|unveil(?:s|ed)?|introduces?\s+nominees\s+for|just\s+presented|hosts?|awarding|brings?\s+out|steps\s+up\s+to\s+present|announces?\s+winner\s+of|presenting)\s+(?:the\s+)?(Best\s.+?)\b"
+    ]],
     
     "categories": [re.compile(pattern, re.IGNORECASE) for pattern in [
-	r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", # Match for Best in a category, goes to, or awarded
-	r"Best ([\w\s]+) (in a (?:[\w\s]+)|goes to|is awarded to [\w\s]+)"  # Match for Best in a category, goes to, or awarded
-	]]
+    r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", # Match for Best in a category, goes to, or awarded
+    r"Best ([\w\s]+) (in a (?:[\w\s]+)|goes to|is awarded to [\w\s]+)"  # Match for Best in a category, goes to, or awarded
+    ]]
     
     }
     
@@ -57,29 +57,29 @@ def init_regex():
 
 
 def clean(text):
-	'''
-	clean(text: str) -> str
-	cleans given text
-	'''
-	fixed = " ".join(text.split()).lower()
-	return fixed
-	
+    '''
+    clean(text: str) -> str
+    cleans given text
+    '''
+    fixed = " ".join(text.split()).lower()
+    return fixed
+    
 def sort(text, patterns, k):
-	'''
-	takes in tweet text and list of patterns, checks if tweet matches ANY patterns
-	in list if so, return all possible findall matches in an array for entire list of
-	patterns
-	'''
-	matches = []
-	for p in patterns: #list of patterns for a given key, i.e. all patterns which are used for host
-		match = p.findall(text)
-		if match != []:
-			#if k == 'presenter':
-			 #   print(match, p)
-			matches.append(match)
-	return matches
-		
-				
+    '''
+    takes in tweet text and list of patterns, checks if tweet matches ANY patterns
+    in list if so, return all possible findall matches in an array for entire list of
+    patterns
+    '''
+    matches = []
+    for p in patterns: #list of patterns for a given key, i.e. all patterns which are used for host
+        match = p.findall(text)
+        if match != []:
+            #if k == 'presenter':
+             #   print(match, p)
+            matches.append(match)
+    return matches
+        
+                
 
 
 def init_and_sort(start):
@@ -182,39 +182,39 @@ def init_and_sort(start):
     return dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat
 
 def categories(df): #[('supporting actress', 'in a tv movie', 'tv movie')]
-	data = []
-	i=0
-	while i < len(df):
-		match = df[i]
-		i += 1
-		cleaned_match = re.sub(r'\s+(goes to|is|for).*', '', match)
-			# Ensure the category starts with "Best"
-		if not cleaned_match.startswith("best"):
-			cleaned_match = "best " + cleaned_match
-		data.append(cleaned_match)
-	counts = Counter(data)
-	counts_dict = {str(key): value for key, value in counts.items()}
-	threshold = 5
-	filtered_category_counts = {key: value for key, value in counts_dict.items() if value >= threshold}
+    data = []
+    i=0
+    while i < len(df):
+        match = df[i]
+        i += 1
+        cleaned_match = re.sub(r'\s+(goes to|is|for).*', '', match)
+            # Ensure the category starts with "Best"
+        if not cleaned_match.startswith("best"):
+            cleaned_match = "best " + cleaned_match
+        data.append(cleaned_match)
+    counts = Counter(data)
+    counts_dict = {str(key): value for key, value in counts.items()}
+    threshold = 5
+    filtered_category_counts = {key: value for key, value in counts_dict.items() if value >= threshold}
 
-	# Sort the filtered categories by their counts
-	sorted_filtered_category_counts = sorted(filtered_category_counts.items(), key=lambda item: item[1], reverse=True)
-	merged_category_counts = merge_similar_categories(sorted_filtered_category_counts)
-	res = sorted(merged_category_counts.items(), key=lambda item: item[1], reverse=True)
-	return res
-	
+    # Sort the filtered categories by their counts
+    sorted_filtered_category_counts = sorted(filtered_category_counts.items(), key=lambda item: item[1], reverse=True)
+    merged_category_counts = merge_similar_categories(sorted_filtered_category_counts)
+    res = sorted(merged_category_counts.items(), key=lambda item: item[1], reverse=True)
+    return res
+    
 def merge_similar_categories(categories, threshold=90):
-	merged = {}
-	for category, count in categories:
-		found = False
-		for existing_category in merged:
-			if fuzz.ratio(category.lower(), existing_category.lower()) > threshold:
-				merged[existing_category] += count
-				found = True
-				break
-		if not found:
-			merged[category] = count
-	return merged
+    merged = {}
+    for category, count in categories:
+        found = False
+        for existing_category in merged:
+            if fuzz.ratio(category.lower(), existing_category.lower()) > threshold:
+                merged[existing_category] += count
+                found = True
+                break
+        if not found:
+            merged[category] = count
+    return merged
 
 
 def nominees(tweets, award_categories, nominees):
@@ -235,74 +235,74 @@ def nominees(tweets, award_categories, nominees):
     
     
 def awardshow(df): #finding award show
-	"""Given all hashtag matches, returns most likely name for the award show
+    """Given all hashtag matches, returns most likely name for the award show
 
-	Args:
-		df (dataframe): pandas dataframe created with init_and_sort. For this function, relevant
-		column is 'hashtag' which stores STRINGS, df['hashtag'][i] = <string>
-		
-	Returns:
-		_type_: awardshow name string
-	"""
-	counts = Counter(df) #count occurrences of each entry
-	if counts:
-		most_common_hashtag, count = counts.most_common(1)[0]
-		print(f"The most mentioned hashtag is: #{most_common_hashtag}")
-		print(f"Number of mentions: {count}")
+    Args:
+        df (dataframe): pandas dataframe created with init_and_sort. For this function, relevant
+        column is 'hashtag' which stores STRINGS, df['hashtag'][i] = <string>
+        
+    Returns:
+        _type_: awardshow name string
+    """
+    counts = Counter(df) #count occurrences of each entry
+    if counts:
+        most_common_hashtag, count = counts.most_common(1)[0]
+        print(f"The most mentioned hashtag is: #{most_common_hashtag}")
+        print(f"Number of mentions: {count}")
 
-		# Split the hashtag into words
-		words = wordninja.split(most_common_hashtag)
-		# Capitalize each word
-		award_name = ' '.join(word.capitalize() for word in words)
-		print(f"The award show name is: {award_name}")
-		return award_name
-	return
+        # Split the hashtag into words
+        words = wordninja.split(most_common_hashtag)
+        # Capitalize each word
+        award_name = ' '.join(word.capitalize() for word in words)
+        print(f"The award show name is: {award_name}")
+        return award_name
+    return
 
 def hosts(df, show):
-	"""hosts(df, show) takes a dataframe containing relevant tweets and the awardshow name, and returns the top 2
-	most likely hosts
+    """hosts(df, show) takes a dataframe containing relevant tweets and the awardshow name, and returns the top 2
+    most likely hosts
 
-	Args:
-		df (dataframe): Pandas dataframe created with init_and_sort(). Relevant column is 'host'
-		Entries can be tuples or strings depending on if dataframe was read or created
-		show (string): award show name 
-	"""
-	model = spacy.load('en_core_web_sm')
-	potential_hosts = []
-	normalized_award_name = clean(show.replace(' ', ''))
-	i = 0
-	while i < len(df): # Loop through all remaining rows
-		curr = df[i] 
-		i += 1
-		if isinstance(curr, tuple): # If tuple transform into string
-			curr = ' '.join(curr)
-		split = re.split(r'\band\b|&', curr) # Split into individual hosts by any existing and/& in string
-		for host in split:
-			host = host.strip()
-			if host:
-				if normalized_award_name not in host.replace(' ', ' '):
-					potential_hosts.append(host)
-		doc = model(curr)
-		for ent in doc.ents: #Thinning results by checking entity label
-			if ent.label_ == 'PERSON':
-				host_name = clean(ent.text) #cleaning up
-				host_name = ' '.join(host_name.split())
-				if host_name:
-						# Exclude if host name contains award show name
-					if normalized_award_name not in host_name.replace(' ', ''):
-						potential_hosts.append(host_name)
-	
-	host_name_counts = Counter(potential_hosts)
-	# Identify the top 2 most common host names
-	if host_name_counts:
-		most_common_hosts = host_name_counts.most_common(2)
-		print("\nTop 2 most likely host(s):")
-		for host, count in most_common_hosts:
-			# Capitalize each word in the host name
-			host_name_formatted = ' '.join(word.capitalize() for word in host.split())
-			print(f"- {host_name_formatted}: mentioned {count} times")
-	else:
-		print("\nNo host names found.")       
+    Args:
+        df (dataframe): Pandas dataframe created with init_and_sort(). Relevant column is 'host'
+        Entries can be tuples or strings depending on if dataframe was read or created
+        show (string): award show name 
+    """
+    model = spacy.load('en_core_web_sm')
+    potential_hosts = []
+    normalized_award_name = clean(show.replace(' ', ''))
+    i = 0
+    while i < len(df): # Loop through all remaining rows
+        curr = df[i] 
+        i += 1
+        if isinstance(curr, tuple): # If tuple transform into string
+            curr = ' '.join(curr)
+        split = re.split(r'\band\b|&', curr) # Split into individual hosts by any existing and/& in string
+        for host in split:
+            host = host.strip()
+            if host:
+                if normalized_award_name not in host.replace(' ', ' '):
+                    potential_hosts.append(host)
+        doc = model(curr)
+        for ent in doc.ents: #Thinning results by checking entity label
+            if ent.label_ == 'PERSON':
+                host_name = clean(ent.text) #cleaning up
+                host_name = ' '.join(host_name.split())
+                if host_name:
+                        # Exclude if host name contains award show name
+                    if normalized_award_name not in host_name.replace(' ', ''):
+                        potential_hosts.append(host_name)
+    
+    host_name_counts = Counter(potential_hosts)
+    # Identify the top 2 most common host names
+    if host_name_counts:
+        most_common_hosts = host_name_counts.most_common(2)
+        print("\nTop 2 most likely host(s):")
+        for host, count in most_common_hosts:
+            # Capitalize each word in the host name
+            host_name_formatted = ' '.join(word.capitalize() for word in host.split())
+            print(f"- {host_name_formatted}: mentioned {count} times")
+    else:
+        print("\nNo host names found.")       
 
 
 def present(df_presenters):
@@ -372,6 +372,38 @@ def present(df_presenters):
         print(f"Presenter: {presenter} - Award: {award}")
 
     return unique_pairs
+
+def find_winners(df, categories):
+    
+    
+    answers = {}
+    i = 0
+
+    while i < len(df):
+        
+        person = df[i][0]
+        query = df[i][2]
+        maxAward = []
+        maxSeq = 0
+        for award in categories:
+            seq = difflib.SequenceMatcher(a=query.lower(), b=award.lower())
+            if seq.ratio() >= maxSeq:
+                maxAward.append(award)
+                maxSeq = seq.ratio()
+        if len(maxAward) > 1:
+            query_words = set(query.lower().split())
+            maxAward = max(maxAward, key=lambda award: len(query_words.intersection(award.lower().split())))
+            if answers.get(maxAward) == None:
+                answers[maxAward] = []
+                answers[maxAward].append(person)
+        i += 1
+    top_mentions = {}
+    for award, people in answers.items():
+        person_counts = Counter(people)
+        # Get the top 3 most common people
+        top_mentions[award] = [person for person, count in person_counts.most_common(3)]
+    
+    return top_mentions
  
 
 
@@ -382,15 +414,17 @@ def main():
     
     dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start)
     cat = categories(dfcat)
-    #print(cat)
-    #nom = nominees([], cat, dfnom)
-    #print(nom)
+    final_categories = merge_similar_categories(cat)
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
     presenters = present(dfpresent)
+    winners = find_winners(dfwin, final_categories)
+    print(winners)
+    
+    
     
     print("\nRuntime of:", time.time() - start, "seconds")
     
     
 if __name__ == "__main__":
-	main()
+    main()
