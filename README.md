@@ -1,43 +1,65 @@
-# CS337_Project1
+# CS337_Project1:
 
-Steps for editing combined.py:
-Add any regex patterns for extracting relevant tweets into the patterns dict
-in init(regex) in the form '<function>: [compiled patterns]' where function is
-what the extracted tweets will be used for
+Instructions for setup: All necessary packages are in requirements.txt. Create a virtual environment using venv or conda and
+run 'pip install -r requirements.txt'
 
-Any edits having to do with grabbing a subset of tweets from the original dataset
-happen in init_and_sort(). 
+To run the code run main.py
 
-More than likely the edits should happen around inside of the loop
-around line 230, which loops through an array of all tweets and checks the tweets against all
-sets of patterns, before grabbing all matches and sorting them according to what set of patterns (the key of the patterns dict) grabbed the matches.
-
-At the end of the function, you should have a np.array of U500 (unsigned char(500)) matches,
-sometimes tuples will be found and that is ok but know that the loop over range(len(curr)) will
-error out if re.sub() is called on a tuple, so handle it before then
-
-make sure you are returning a dataframe with only the matches you need for one function and add it to the return statement at the end of init_and_sort(), as well as call it in main()
-
-Last step is to add a new function taking the dataframe. 
-
-
-        
-
-Find categories
-Find potential winners
-Find fashion/parties
-
-match winners, nominees, presenters to categories
-
-format results and returns
-
-possible runtime or accuracy optimization
-
-categories(Find categories) -> winners (find possible winners and try to match them with categories)
-                                nominees matching with categories
-
-                                edit presenters to match with categories
-                                edit nominees to match with categories
-                                edit winners to match with categories
-
-                                return/format results
+Libraries Included: 
+annotated-types==0.7.0
+blis==1.0.1
+catalogue==2.0.10
+certifi==2024.8.30
+charset-normalizer==3.4.0
+click==8.1.7
+cloudpathlib==0.20.0
+colorama==0.4.6
+confection==0.1.5
+cymem==2.0.8
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl#sha256=1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85
+ftfy==6.3.1
+fuzzywuzzy==0.18.0
+idna==3.10
+Jinja2==3.1.4
+langcodes==3.4.1
+langdetect==1.0.9
+language_data==1.2.0
+Levenshtein==0.26.1
+marisa-trie==1.2.1
+markdown-it-py==3.0.0
+MarkupSafe==3.0.2
+mdurl==0.1.2
+murmurhash==1.0.10
+numpy==2.0.2
+packaging==24.1
+pandas==2.2.3
+preshed==3.0.9
+pydantic==2.9.2
+pydantic_core==2.23.4
+Pygments==2.18.0
+python-dateutil==2.9.0.post0
+python-Levenshtein==0.26.1
+pytz==2024.2
+RapidFuzz==3.10.1
+requests==2.32.3
+rich==13.9.3
+setuptools==75.3.0
+shellingham==1.5.4
+six==1.16.0
+smart-open==7.0.5
+spacy==3.8.2
+spacy-legacy==3.0.12
+spacy-loggers==1.0.5
+srsly==2.4.8
+thinc==8.3.2
+tqdm==4.66.6
+typer==0.12.5
+typing_extensions==4.12.2
+tzdata==2024.2
+Unidecode==1.3.8
+urllib3==2.2.3
+wasabi==1.1.3
+wcwidth==0.2.13
+weasel==0.4.1
+wordninja==2.0.0
+wrapt==1.16.0
