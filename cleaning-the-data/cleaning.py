@@ -9,6 +9,8 @@ nltk.download('stopwords')
 
 stop_words = set(nltk.corpus.stopwords.words('english'))
 
+#remove non english tweets - langdetect
+
 # Load the JSON data from the file
 with open('/Users/jasminemeyer/CS337_Project1/gg2013.json', 'r') as file:
     data = json.load(file)
