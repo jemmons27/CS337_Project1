@@ -1,6 +1,5 @@
 import numpy as np
 import json
-from langdetect import detect, detect_langs
 import re
 import pandas as pd
 import time
@@ -8,10 +7,9 @@ from datetime import datetime, timedelta
 import spacy
 import wordninja
 from collections import Counter
-from os import mkdir
 from fuzzywuzzy import fuzz
+from collections import defaultdict
 
-from warnings import simplefilter 
 
 
 def extract_data(path):
@@ -46,9 +44,10 @@ def init_regex():
 	r"([A-Za-z\s&]+?)\s+(?:is\s+presenting|to\s+present|presented|gives?\s+out|gave|is\s+announcing|announced|reveal(?:s|ed)?|hands?\s+(?:over|out)|unveil(?:s|ed)?|introduces?\s+nominees\s+for|just\s+presented|hosts?|awarding|brings?\s+out|steps\s+up\s+to\s+present|announces?\s+winner\s+of|presenting)\s+(?:the\s+)?(Best\s.+?)\b"
 	]],
     
-    "categories": [re.compile(
-    r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", re.IGNORECASE  # Match for Best in a category, goes to, or awarded
-    )]
+    "categories": [re.compile(pattern, re.IGNORECASE) for pattern in [
+	r"Best ([\w\s]+) (in a ([\w\s]+)|goes to|is awarded to [\w\s]+)", # Match for Best in a category, goes to, or awarded
+	r"Best ([\w\s]+) (in a (?:[\w\s]+)|goes to|is awarded to [\w\s]+)"  # Match for Best in a category, goes to, or awarded
+	]]
     
     }
     
@@ -142,7 +141,7 @@ def init_and_sort(start):
             curr = searched[0] #################
             if k == 'categories':
                 if isinstance(curr[0], tuple):
-                    cleaned =' in a '.join(curr[0])
+                    cleaned =' '.join(curr[0])
                 else:
                     cleaned=curr[0]
                 df.append(cleaned)
@@ -215,26 +214,21 @@ def merge_similar_categories(categories, threshold=90):
     return merged
 
 
-def nominees(df): #find possible nominees
-    model = spacy.load('en_core_web_sm')
-    i=0
-    res=[]
-    while i < len(df): # go through nominees col of df
-        curr = df[i] 
-        i += 1
-        if type(curr) != str: #needs to be a string or invalid
-            continue
-        if curr == []:
-            continue
-        output = model(curr) #thin out results with entity matching and noun chunks
-        for ent in output.ents:
-            if ent.label_ == 'PERSON':
-                res.append(ent.text)
-        for chunk in output.noun_chunks:
-            res.append(chunk.text)
-            
-    res_count = Counter(res) #count results
-    return res_count    
+def nominees(tweets, award_categories, nominees):
+    nominee_to_categories = defaultdict(list)
+    category_patterns = {category: re.compile(re.escape(category), re.IGNORECASE) for category in award_categories.keys()}
+    nominee_patterns = {nominee: re.compile(re.escape(nominee), re.IGNORECASE) for nominee in nominees}
+
+    for tweet in tweets:
+        text = tweet.get("text", "")
+        for nominee, nominee_pattern in nominee_patterns.items():
+            if nominee_pattern.search(text):
+                for category, category_pattern in category_patterns.items():
+                    if category_pattern.search(text):
+                        if nominee not in nominee_to_categories[category]:
+                            nominee_to_categories[category].append(nominee)
+    
+    return dict(nominee_to_categories)   
     
     
 def awardshow(df): #finding award show
@@ -386,7 +380,7 @@ def main():
     dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start)
     cat = categories(dfcat)
     #print(cat)
-    nom = nominees(dfnom)
+    #nom = nominees([], cat, dfnom)
     #print(nom)
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
