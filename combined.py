@@ -154,6 +154,10 @@ def init_and_sort(start):
                 df.append(curr[0])
                 sorted[k] = df
                 continue
+            if k == 'winner':
+                df.append(curr[0])
+                sorted[k] = df
+                continue
             for j in range(len(curr)): #otherwise we want to split the tuples
                     slce = curr[j] #one tuple/list entry
                     if type(slce) == tuple: #if its nested take a guess
@@ -380,7 +384,6 @@ def find_winners(df, categories):
     i = 0
 
     while i < len(df):
-        
         person = df[i][0]
         query = df[i][2]
         maxAward = []
