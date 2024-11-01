@@ -577,6 +577,10 @@ def main():
     print("CATEGORIES TO NOMINEES: ")
     for category, nominees in nominee_to_categories.items():
         print(f"{category}: {nominees}\n")
+
+    print("PARTIES")
+    parties= analyze_parties('gg2013.json')
+    print(parties)
     
     print("\nRuntime of:", time.time() - start, "seconds")
     
