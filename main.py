@@ -11,7 +11,9 @@ from collections import Counter, defaultdict
 from os import mkdir
 from fuzzywuzzy import fuzz, process
 import wordninja
-
+from textblob import TextBlob
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import csv
 
 
 
@@ -360,7 +362,7 @@ def present(df_presenters, cat):
     unique_pairs = list(set(options))
     mapped_pairs = []
     for presenter, award in unique_pairs:
-        match = process.extractOne(award, categories, scorer=fuzz.WRatio)
+        match = process.extractOne(award, cat, scorer=fuzz.WRatio)
         if match:
             closest_category = match[0]
             mapped_pairs.append((presenter, closest_category))
@@ -399,6 +401,129 @@ def find_winners(df, categories):
         top_mentions[award] = [person for person, count in person_counts.most_common(3)]
     
     return top_mentions
+
+
+## MAPPING NOMINEES TO CATEGORIES
+correct_categories = [
+'best screenplay - motion picture', 'best director - motion picture', 
+'best performance by an actress in a television series - comedy or musical', 
+    'best foreign language film', 'best performance by an actor in a supporting role in a motion picture', 
+    'best performance by an actress in a supporting role in a series, mini-series or motion picture made for television', 
+    'best motion picture - comedy or musical', 'best performance by an actress in a motion picture - comedy or musical', 
+    'best mini-series or motion picture made for television', 'best original score - motion picture', 
+    'best performance by an actress in a television series - drama', 'best performance by an actress in a motion picture - drama', 
+    'cecil b. demille award', 'best performance by an actor in a motion picture - comedy or musical', 
+    'best motion picture - drama', 'best performance by an actor in a supporting role in a series, mini-series or motion picture made for television', 
+    'best performance by an actress in a supporting role in a motion picture', 'best television series - drama', 
+    'best performance by an actor in a mini-series or motion picture made for television', 
+    'best performance by an actress in a mini-series or motion picture made for television', 
+    'best animated feature film', 'best original song - motion picture', 
+    'best performance by an actor in a motion picture - drama', 'best television series - comedy or musical', 
+    'best performance by an actor in a television series - drama', 'best performance by an actor in a television series - comedy or musical'
+]
+
+def load_nominees(file_path):
+    with open(file_path, 'r') as file:
+        reader = csv.reader(file)
+        nominees = [row[0].strip() for row in reader if row]
+    return nominees
+
+def map_nominees_to_categories(tweets, correct_categories, nominees):
+    nominee_to_categories = defaultdict(list)
+    category_patterns = {category: re.compile(re.escape(category), re.IGNORECASE) for category in correct_categories}
+    nominee_patterns = {nominee: re.compile(re.escape(nominee), re.IGNORECASE) for nominee in nominees}
+
+    for tweet in tweets:
+        text = tweet.get("text", "")
+
+        for nominee, nominee_pattern in nominee_patterns.items():
+            if len(nominee) > 4 and nominee_pattern.search(text):
+                for category, category_pattern in category_patterns.items():
+                    if category_pattern.search(text):
+                        if nominee not in nominee_to_categories[category] and "nominee" not in nominee:
+                            nominee_to_categories[category].append(nominee)
+    
+    return dict(nominee_to_categories)
+
+#####
+
+
+def analyze_parties(tweets_file_path):
+    """
+    Analyzes party mentions and sentiments from tweets loaded from a JSON file.
+    
+    Args:
+        tweets_file_path (str): Path to the JSON file containing tweets.
+    
+    Returns:
+        dict: {
+            'party_mentions': dict,
+            'party_avg_sentiment': dict,
+            'most_attended_party': str or None,
+            'party_with_highest_sentiment': str or None
+        }
+    """
+    nlp = spacy.load('en_core_web_sm')
+    party_keywords = ['party', 'after-party', 'afterparty', 'celebration', 'gala']
+    party_counter = Counter()
+    party_sentiment = defaultdict(list)
+    
+    def analyze_sentiment(text):
+        return TextBlob(text).sentiment.polarity
+    
+    def extract_parties(text):
+        doc = nlp(text)
+        return [ent.text for ent in doc.ents if ent.label_ in ['ORG', 'EVENT'] and any(keyword in ent.text.lower() for keyword in party_keywords)]
+    
+    # Load tweets from the JSON file
+    try:
+        with open(tweets_file_path, 'r', encoding='utf-8') as file:
+            tweets = json.load(file)
+    except FileNotFoundError:
+        print(f"Tweets file not found at path: {tweets_file_path}")
+        return {}
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from the tweets file at path: {tweets_file_path}")
+        return {}
+    
+    def process_tweets(tweets):
+        texts = [tweet['text'] for tweet in tweets]
+        docs = list(nlp.pipe(texts, batch_size=50))
+        for tweet, doc in zip(tweets, docs):
+            parties = [ent.text for ent in doc.ents if ent.label_ in ['ORG', 'EVENT'] and any(keyword in ent.text.lower() for keyword in party_keywords)]
+            if parties:
+                tweet['parties'] = parties
+                tweet['sentiment'] = analyze_sentiment(tweet['text'])
+        return tweets
+    
+    # Process the tweets in parallel
+    batch_size = 100
+    processed_data = []
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(process_tweets, tweets[i:i + batch_size]) for i in range(0, len(tweets), batch_size)]
+        for future in as_completed(futures):
+            processed_data.extend(future.result())
+    
+    # Count party mentions and aggregate sentiment
+    for tweet in processed_data:
+        if 'parties' in tweet:
+            for party in tweet['parties']:
+                party_counter[party] += 1
+                party_sentiment[party].append(tweet['sentiment'])
+    
+    # Calculate average sentiment for each party
+    party_avg_sentiment = {party: sum(sentiments) / len(sentiments) for party, sentiments in party_sentiment.items()}
+    
+    most_attended_party = max(party_counter, key=party_counter.get) if party_counter else None
+    party_with_highest_sentiment = max(party_avg_sentiment, key=party_avg_sentiment.get) if party_avg_sentiment else None
+    
+    return {
+        'party_mentions': dict(party_counter),
+        'party_avg_sentiment': party_avg_sentiment,
+        'most_attended_party': most_attended_party,
+        'party_with_highest_sentiment': party_with_highest_sentiment
+    }
+
  
 
 def award_categories_answers(fpath):
@@ -424,8 +549,7 @@ def cat_match(cat, real, tshld):
 def main():
     start = time.time()
        
-        
-    
+
     dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start)
     cat = categories(dfcat)
     print('Input categories? [y/n] > ')
@@ -440,6 +564,19 @@ def main():
     show = awardshow(dfshow)
     host = hosts(dfhost, show)
     presenters = present(dfpresent, matched_categories)
+    
+    ## nominees to categories
+    tweets_file_path = "gg2013.json"
+    nominees_file_path = "json_and_csv_files/nominees.csv"
+    # Load data
+    with open(tweets_file_path, 'r') as file:
+        tweets = json.load(file)
+    nominees = load_nominees(nominees_file_path)
+    # Map nominees to categories
+    nominee_to_categories = map_nominees_to_categories(tweets, correct_categories, nominees)
+    print("CATEGORIES TO NOMINEES: ")
+    for category, nominees in nominee_to_categories.items():
+        print(f"{category}: {nominees}\n")
     
     print("\nRuntime of:", time.time() - start, "seconds")
     
