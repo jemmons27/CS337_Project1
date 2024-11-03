@@ -16,7 +16,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import csv
 
 
-
+###THIS FILE IS RUN FROM gg_api.py!!!!!! It needs year input and tmp, which is the result of
+#some shenanigans with the hardcoded categories to make them work with the presenters function
 
 def extract_data(path):
 	'''
@@ -90,14 +91,14 @@ def sort(text, patterns, k):
 				
 
 
-def init_and_sort(start):
+def init_and_sort(start, year):
 	"""__summary__: Parses through all tweets in datasets and checks them against all patterns
 	for a given pattern key, for example, those that help find presenters, all successfully
 	found matches are stored into a dataframe column corresponding to the key, then written to
 	a file in df/<column name>
 	"""
 	print("Enter dataset path: ")
-	path ='gg2013.json'
+	path ="gg" + year + ".json"
 	#path = input("> ")
 	data = extract_data(path)
 	patterns = init_regex()
@@ -530,14 +531,6 @@ def analyze_parties(tweets_file_path):
 
  
 
-def award_categories_answers(fpath):
-	award_categories_answers = []
-	with open(fpath, 'r') as file:
-		data = json.load(file)
-	for i in data["award_data"]:
-		award_categories_answers.append(i)
-	return award_categories_answers
-
 def cat_match(cat, real, tshld):
 	res = {i: [] for i in real}
 	for tup in cat:
@@ -616,51 +609,74 @@ def format_human_readable(output, party_analysis):
 			lines.append("")  # Add a newline if there's no winner
 	return lines
 
-def main():
-	start = time.time()
-	   
+def store_results(data_lists, year):
+    for l in data_lists:
+        path = l + year + ".json"
+        with (open(path, 'w', encoding='utf-8')) as f:
+            json.dump(data_lists[l], f)
+            f.close()
+    
+    
 
-	dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start)
-	cat = categories(dfcat)
-	print('Input categories? [y/n] > ')
-	x = input()
-	if x == 'y':
-		print('Enter Path > ')
-		fpath=input()
-	else:
-		fpath='gg2013answers.json'
-	real=award_categories_answers(fpath)
-	matched_categories = cat_match(cat, real, tshld=70)
-	show = awardshow(dfshow)
-	host = hosts(dfhost, show)
-	presenters = present(dfpresent, matched_categories)
-	winners_to_cat = find_winners(dfwin, correct_categories)
+def main(year, tmp):
+    start = time.time()
+    #dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = init_and_sort(start, year)
+    path = 'gg' + year + 'categories.json'
+    with open(path, 'r') as f:
+        correct_categories = json.load(f) 
+    #real=award_categories_answers(fpath)
+    #print(real)
+    #matched_categories = cat_match(cat, real, tshld=70)
+    path = "show" + year + ".json"
+    with (open(path, 'r')) as f:
+        dfshow = json.load(f)
+    show = awardshow(dfshow)
+    path = 'hosts' + year + '.json'
+    with open(path, 'r') as f:
+        dfhost = json.load(f)
+    host = hosts(dfhost, show)
+    path = 'presenters' + year + '.json'
+    with open(path, 'r') as f:
+        presenter_data = json.load(f)
+    fixed = []
+    for entry in presenter_data:
+        fixed.append(tuple(entry))
+    print('presenters')
+    presenters = present(fixed, tmp)
+    path = 'winners' + year + '.json'
+    with (open(path, 'r')) as f:
+        winner_data = json.load(f)
+    winners_to_cat = find_winners(winner_data, correct_categories)
 	
 	## nominees to categories
-	tweets_file_path = "gg2013.json"
-	nominees_file_path = "json_and_csv_files/nominees.csv"
+    tweets_file_path = "gg2013.json"
+    path = 'nominees' + year + '.json'
 	# Load data
-	with open(tweets_file_path, 'r') as file:
-		tweets = json.load(file)
-	nominees = load_nominees(nominees_file_path)
+    with open(tweets_file_path, 'r') as file:
+        tweets = json.load(file)
+    nominees = load_nominees(path)
 	# Map nominees to categories
-	nominee_to_categories = map_nominees_to_categories(tweets, correct_categories, nominees)
-	print("CATEGORIES TO NOMINEES: ")
-	for category, nominees in nominee_to_categories.items():
-		print(f"{category}: {nominees}\n")
+    nominee_to_categories = map_nominees_to_categories(tweets, correct_categories, nominees)
+    print("CATEGORIES TO NOMINEES: ")
+    for category, nominees in nominee_to_categories.items():
+        print(f"{category}: {nominees}\n")
 
-	print("PARTIES")
-	parties= analyze_parties('gg2013.json')
-	print(parties)
+    print("PARTIES")
+    parties= analyze_parties('gg2013.json')
+    print(parties)
 	
-	json_output = construct_output(show, host, presenters, winners_to_cat, nominee_to_categories, correct_categories)
-	print("OUTPUT:")
+    json_output = construct_output(show, host, presenters, winners_to_cat, nominee_to_categories, correct_categories)
+    with open('gg' + year + 'json_output.json', 'w') as f:
+        json.dump(json_output, f)
+    print("OUTPUT:")
 	# print(json_output)
-	human_output = format_human_readable(json_output, parties)
-	print(human_output)
+    human_output = format_human_readable(json_output, parties)
+    with open('gg' + year + 'human_output.txt', 'w') as f:
+        json.dump(human_output, f)
+    print(human_output)
 	
-	print("\nRuntime of:", time.time() - start, "seconds")
+    print("\nRuntime of:", time.time() - start, "seconds")
 	
-	
+
 if __name__ == "__main__":
-	main()
+    main()

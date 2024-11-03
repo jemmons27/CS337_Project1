@@ -3,7 +3,7 @@
 Instructions for setup: All necessary packages are in requirements.txt. Create a virtual environment using venv or conda and
 run 'pip install -r requirements.txt'
 
-To run the code run main.py
+To run the code run gg_api.py.
 
 Libraries Included: 
 annotated-types==0.7.0
