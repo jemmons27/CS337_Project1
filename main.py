@@ -547,67 +547,131 @@ def cat_match(cat, real, tshld):
 def construct_output(show, hosts, presenters, winners, nominees, official_categories):
     """
     Constructs the final JSON output with hosts and award data.
-    
+
     Args:
         show (str): Name of the award show.
         hosts (list): List of host names.
         presenters (list[tuple]): List of tuples (presenter_name, matched_official_category).
-        winners (dict): Dictionary mapping categories to winners.
+        winners (dict): Dictionary mapping categories to lists of winners.
         nominees (dict): Dictionary mapping categories to nominees.
         official_categories (list): List of official award categories.
-    
+
     Returns:
         dict: Structured JSON output.
     """
-    award_data = {category: {"nominees": nominees.get(category, []),
-                             "presenters": [],
-                             "winner": winners.get(category, "")}
-                  for category in official_categories}
-    
+    # Initialize award_data with all official categories
+    award_data = {
+        category: {
+            "nominees": nominees.get(category, []),
+            "presenters": [],
+            "winner": winners.get(category, [""])[0]  # Map to the first winner in the list
+        }
+        for category in official_categories
+    }
+
+    # Iterate over presenters and assign them to the appropriate category
     for presenter, category in presenters:
         if isinstance(category, list):
+            # Choose the longest entry in the list as the category
             category = max(category, key=len)
+            print(f"Category was a list. Selected the longest entry: '{category}'")
+
         if category in award_data:
             award_data[category]["presenters"].append(presenter)
-    
+        else:
+            print(f"Warning: Category '{category}' not found in official_categories.")
+
+    # Construct the final output dictionary
     output = {
         "Award show": show,
         "hosts": hosts,
         "award_data": award_data
     }
-    
+
     return output
 
-def format_human_readable(output, party_analysis):
+def format_human_readable(output, winners, party_analysis):
     """
     Formats the award show data into a human-readable string, including party analysis.
-    
+
     Args:
-        output (dict): The structured JSON output.
-        party_analysis (dict): Party analysis results.
-    
+        output (dict): The structured JSON output from construct_output.
+        winners (dict): Dictionary mapping categories to lists of top 3 potential winners.
+        party_analysis (dict): Party analysis results containing mentions and sentiment.
+
     Returns:
         str: Human-readable formatted string.
     """
     lines = []
-    lines.append(f"Award show: {output.get('Award show', '')}\n")
     
+    # Award Show Name
+    award_show = output.get('Award show', 'Unknown Award Show')
+    lines.append(f"Award show: {award_show}\n")
+    
+    # Hosts
     hosts = output.get('hosts', [])
     if hosts:
-        lines.append(f"Hosts: {', '.join(hosts)}\n")
+        hosts_str = ', '.join(hosts)
+        lines.append(f"Hosts: {hosts_str}\n")
     
+    # Award Categories
     for category, details in output.get('award_data', {}).items():
         lines.append(f"Award: {category}")
-        if details["presenters"]:
-            lines.append(f"Presenters: {', '.join(details['presenters'])}")
-        if details["nominees"]:
-            nominees_str = ', '.join(f'"{nom}"' for nom in details["nominees"])
+        
+        # Presenters
+        presenters = details.get("presenters", [])
+        if presenters:
+            presenters_str = ', '.join(presenters)
+            lines.append(f"Presenters: {presenters_str}")
+        
+        # Nominees
+        nominees = details.get("nominees", [])
+        if nominees:
+            nominees_str = ', '.join(f'"{nom}"' for nom in nominees)
             lines.append(f"Nominees: {nominees_str}")
-        if details["winner"]:
-            lines.append(f"Winner: \"{details['winner']}\"\n")
+        
+        # Potential Winners
+        potential_winners = winners.get(category, [])
+        if potential_winners:
+            # Ensure only the top 3 winners are listed
+            top_winners = potential_winners[:3]
+            potential_winners_str = ', '.join(f'"{winner}"' for winner in top_winners)
+            lines.append(f"Potential Winners: {potential_winners_str}\n")
         else:
-            lines.append("")  # Add a newline if there's no winner
-    return lines
+            lines.append("")  # Add a newline if there are no potential winners
+    
+    # Party Analysis
+    if party_analysis:
+        lines.append("Party Analysis:\n")
+        
+        # Party Mentions
+        party_mentions = party_analysis.get('party_mentions', {})
+        lines.append("Party Mentions:")
+        for party, count in party_mentions.items():
+            lines.append(f"{party}: {count}")
+        
+        # Party Average Sentiment
+        party_avg_sentiment = party_analysis.get('party_avg_sentiment', {})
+        lines.append("\nParty Average Sentiment:")
+        for party, sentiment in party_avg_sentiment.items():
+            lines.append(f"{party}: {sentiment}")
+        
+        # Most Attended Party
+        most_attended_party = party_analysis.get('most_attended_party')
+        if most_attended_party:
+            mentions = party_mentions.get(most_attended_party, 0)
+            lines.append(f"\nMost attended party: {most_attended_party} ({mentions} mentions)")
+        
+        # Party with Highest Sentiment
+        party_with_highest_sentiment = party_analysis.get('party_with_highest_sentiment')
+        if party_with_highest_sentiment:
+            sentiment_score = party_avg_sentiment.get(party_with_highest_sentiment, 0)
+            sentiment = "positive" if sentiment_score > 0 else "negative"
+            lines.append(f"Party with highest sentiment: {party_with_highest_sentiment} ({sentiment}, score: {sentiment_score:.2f})")
+    
+    # Join all lines into a single string separated by newlines
+    human_readable_output = '\n'.join(lines)
+    return human_readable_output
 
 def store_results(data_lists, year):
     for l in data_lists:
@@ -666,11 +730,11 @@ def main(year, tmp):
     print(parties)
     
     json_output = construct_output(show, host, presenters, winners_to_cat, nominee_to_categories, correct_categories)
-    with open('gg' + year + 'json_output.json', 'w') as f:
-        json.dump(json_output, f)
+    # with open('gg' + year + 'json_output.json', 'w') as f:
+    #     json.dump(json_output, f)
     print("OUTPUT:")
     # print(json_output)
-    human_output = format_human_readable(json_output, parties)
+    human_output = format_human_readable(json_output, winners_to_cat, parties)
     with open('gg' + year + 'human_output.txt', 'w') as f:
         json.dump(human_output, f)
     print(human_output)
