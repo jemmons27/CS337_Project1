@@ -25,10 +25,9 @@ def get_awards(year):
     with (open(path, 'r')) as f:
         category_data = json.load(f)
     counts = m.categories(category_data)
-    awards = []
-    for c in counts:
-        string = c[0].strip()
-        awards.append(string)
+    cats = m.merge_similar_categories(counts)
+    print(cats)
+    awards=cats
     return awards
 
 def get_nominees(year): ### NEEDS TO BE DONE
@@ -38,13 +37,24 @@ def get_nominees(year): ### NEEDS TO BE DONE
     path = 'nominees' + year + '.json' ###Temp code so that it works with autograder
     with (open(path, 'r')) as f:
         nominee_data = json.load(f)
+    for i in range(len(nominee_data)):
+        nominee_data[i] = nominee_data[i].strip()
+        
     path = 'gg' + year + 'categories.json'
     with (open(path, 'r')) as f:
         categories = json.load(f)
     nominees = {}
+    path = 'gg' + year + '.json'
+    with (open(path, 'r')) as f:
+        tweet_data = json.load(f)
+    tmp = {}
+    for cat in categories:
+        tmp[cat] = cat
+    nominees = m.map_nominees_to_categories(tweet_data, tmp, nominee_data)
     for cat in categories:
         if cat not in nominees.keys():
-            nominees[cat] = [""]
+            nominees[cat] = []
+    print(nominees)
     return nominees
 
 def get_winner(year):
