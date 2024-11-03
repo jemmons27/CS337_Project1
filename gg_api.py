@@ -26,7 +26,6 @@ def get_awards(year):
         category_data = json.load(f)
     counts = m.categories(category_data)
     cats = m.merge_similar_categories(counts)
-    print(cats)
     awards=cats
     return awards
 
@@ -54,7 +53,6 @@ def get_nominees(year): ### NEEDS TO BE DONE
     for cat in categories:
         if cat not in nominees.keys():
             nominees[cat] = []
-    print(nominees)
     return nominees
 
 def get_winner(year):
@@ -113,6 +111,7 @@ def pre_ceremony():
     plain text file. It is the first thing the TA will run when grading.
     Do NOT change the name of this function or what it returns.'''
     start = time.time()
+    #year = input("Input year >")
     year = '2013'
     dfnom, dfshow, dfhost, dfpresent, dfwin, dfcat = m.init_and_sort(start, year)
     results = {
@@ -135,7 +134,7 @@ def main():
     run when grading. Do NOT change the name of this function or
     what it returns.'''
     pre_ceremony()
-    #print('Input year > ')
+    #year = input("Input year >")
     year = '2013' # Run data initialization and write data to files labeled parsed_data/<category>
     path = 'gg' + year + 'categories.json'
     with open(path, 'r') as f:

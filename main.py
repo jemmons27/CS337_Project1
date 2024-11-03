@@ -97,14 +97,12 @@ def init_and_sort(start, year):
     found matches are stored into a dataframe column corresponding to the key, then written to
     a file in df/<column name>
     """
-    print("Enter dataset path: ")
     path ="gg" + year + ".json"
     #path = input("> ")
     data = extract_data(path)
     patterns = init_regex()
 
     keys = patterns.keys()
-    print(keys)
     r = r"^[\s\[']+|[\]']+$ "
     # pattern is only used when regex interprets [' ... '] as part
     # of the string
@@ -259,14 +257,11 @@ def awardshow(df): #finding award show
     counts = Counter(df) #count occurrences of each entry
     if counts:
         most_common_hashtag, count = counts.most_common(1)[0]
-        print(f"The most mentioned hashtag is: #{most_common_hashtag}")
-        print(f"Number of mentions: {count}")
 
         # Split the hashtag into words
         words = wordninja.split(most_common_hashtag)
         # Capitalize each word
         award_name = ' '.join(word.capitalize() for word in words)
-        print(f"The award show name is: {award_name}")
         return award_name
     return
 
@@ -309,14 +304,10 @@ def hosts(df, show):
     # Identify the top 2 most common host names
     if host_name_counts:
         most_common_hosts = host_name_counts.most_common(2)
-        print("\nTop 2 most likely host(s):")
         for host, count in most_common_hosts:
             # Capitalize each word in the host name
             host_name_formatted = ' '.join(word.capitalize() for word in host.split())
-            print(f"- {host_name_formatted}: mentioned {count} times")
-            res.append(host_name_formatted)
-    else:
-        print("\nNo host names found.")   
+            res.append(host_name_formatted)  
 
     return res    
 
@@ -341,11 +332,10 @@ def present(df_presenters, cat):
     for item in df_presenters:
         # Ensure the item is a tuple with exactly two elements
         if not isinstance(item, tuple) or len(item) != 2:
-            print(f"Skipping invalid entry")
             continue
         presenter_text, award_text = item
         if not presenter_text or not award_text:
-            print(f"Skipping empty presenter or award {item}")
+
             continue
         award_text = award_text.strip()
         if not award_text.lower().startswith('best'):

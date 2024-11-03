@@ -1,9 +1,22 @@
 # CS337_Project1:
+Python version =-3.12.3
+
+GITHUB REPO: https://github.com/jemmons27/CS337_Project1
 
 Instructions for setup: All necessary packages are in requirements.txt. Create a virtual environment using venv or conda and
 run 'pip install -r requirements.txt'
 
-To run the code run gg_api.py.
+To run the code run gg_api.py, which accesses and runs main.py
+
+
+The code in gg_api uses a year variable multiple times, which corresponds to the year of the award ceremony
+When initially fetching data from the json, the code looks for a file called 'gg' + year + '.json', so please
+format the dataset files the same way. 
+
+This year variable MUST be manually changed in gg_api.main and gg_api.pre_ceremony
+Alternatively, one can comment out the hardcoded year and uncomment the input lines.
+
+
 
 Libraries Included: 
 annotated-types==0.7.0
@@ -21,6 +34,7 @@ ftfy==6.3.1
 fuzzywuzzy==0.18.0
 idna==3.10
 Jinja2==3.1.4
+joblib==1.4.2
 langcodes==3.4.1
 langdetect==1.0.9
 language_data==1.2.0
@@ -30,6 +44,7 @@ markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
 murmurhash==1.0.10
+nltk==3.9.1
 numpy==2.0.2
 packaging==24.1
 pandas==2.2.3
@@ -41,6 +56,7 @@ python-dateutil==2.9.0.post0
 python-Levenshtein==0.26.1
 pytz==2024.2
 RapidFuzz==3.10.1
+regex==2024.9.11
 requests==2.32.3
 rich==13.9.3
 setuptools==75.3.0
@@ -51,6 +67,7 @@ spacy==3.8.2
 spacy-legacy==3.0.12
 spacy-loggers==1.0.5
 srsly==2.4.8
+textblob==0.18.0.post0
 thinc==8.3.2
 tqdm==4.66.6
 typer==0.12.5
@@ -63,3 +80,4 @@ wcwidth==0.2.13
 weasel==0.4.1
 wordninja==2.0.0
 wrapt==1.16.0
+
